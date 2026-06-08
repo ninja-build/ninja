@@ -69,14 +69,14 @@ Here are the design goals of Ninja:
 Some explicit _non-goals_:
 
 * convenient syntax for writing build files by hand.  _You should
-  generate your ninja files using another program_.  This is how we
+  generate your Ninja files using another program_.  This is how we
   can sidestep many policy decisions.
 
 * built-in rules. _Out of the box, Ninja has no rules for
   e.g. compiling C code._
 
 * build-time customization of the build. _Options belong in
-  the program that generates the ninja files_.
+  the program that generates the Ninja files_.
 
 * build-time decision-making ability such as conditionals or search
   paths. _Making decisions is slow._
@@ -98,12 +98,12 @@ projects find make alone adequate for their build problems.
 
 In contrast, Ninja has almost no features; just those necessary to get
 builds correct while punting most complexity to generation of the
-ninja input files.  Ninja by itself is unlikely to be useful for most
+Ninja input files.  Ninja by itself is unlikely to be useful for most
 projects.
 
 Here are some of the features Ninja adds to Make.  (These sorts of
 features can often be implemented using more complicated Makefiles,
-but they are not part of make itself.)
+but they are not part of Make itself.)
 
 * Ninja has special support for discovering extra dependencies at build
   time, making it easy to get <<ref_headers,header dependencies>>
@@ -137,7 +137,7 @@ Using Ninja for your project
 
 Ninja currently works on Unix-like systems and Windows. It's seen the
 most testing on Linux (and has the best performance there) but it runs
-fine on Mac OS X and FreeBSD.
+fine on macOS and FreeBSD.
 
 If your project is small, Ninja's speed impact is likely unnoticeable.
 (However, even for small projects it sometimes turns out that Ninja's
@@ -146,7 +146,7 @@ builds.)  Another way to say this is that if you're happy with the
 edit-compile cycle time of your project already then Ninja won't help.
 
 There are many other build systems that are more user-friendly or
-featureful than Ninja itself.  For some recommendations: the Ninja
+featureful than Ninja.  For some recommendations: the Ninja
 author found http://gittup.org/tup/[the tup build system] influential
 in Ninja's design, and thinks https://github.com/apenwarr/redo[redo]'s
 design is quite clever.
@@ -154,14 +154,14 @@ design is quite clever.
 Ninja's benefit comes from using it in conjunction with a smarter
 meta-build system.
 
-https://gn.googlesource.com/gn/[gn]:: The meta-build system used to
+https://gn.googlesource.com/gn/[GN]:: The meta-build system used to
 generate build files for Google Chrome and related projects (v8,
-node.js), as well as Google Fuchsia.  gn can generate Ninja files for
+node.js), as well as Google Fuchsia.  GN can generate Ninja files for
 all platforms supported by Chrome.
 
 https://cmake.org/[CMake]:: A widely used meta-build system that
 can generate Ninja files on Linux as of CMake version 2.8.8.  Newer versions
-of CMake support generating Ninja files on Windows and Mac OS X too.
+of CMake support generating Ninja files on Windows and macOS too.
 
 https://github.com/ninja-build/ninja/wiki/List-of-generators-producing-ninja-build-files[others]:: Ninja ought to fit perfectly into other meta-build software
 like https://premake.github.io/[premake].  If you do this work,
@@ -228,9 +228,9 @@ Ninja automatically becomes a protocol client during builds when:
 
 - The `MAKEFLAGS` environment variable is defined and describes a valid
   jobserver mode using `--jobserver-auth=SEMAPHORE_NAME` on Windows, or
-  `--jobserver-auth=fifo:PATH` on Posix.
+  `--jobserver-auth=fifo:PATH` on POSIX.
 
-IMPORTANT: On Posix, only the FIFO-based version of the protocol, which is
+IMPORTANT: On POSIX, only the FIFO-based version of the protocol, which is
 implemented by GNU Make 4.4 and higher, is supported. Ninja will detect
 when a pipe-based jobserver is being used (i.e. when `MAKEFLAGS` contains
 `--jobserver-auth=<read>,<write>`) and will print a warning, but will
@@ -382,7 +382,7 @@ The output will be a series of lines with the following elements:
 The default `<delimiter>` is a single TAB character.
 The delimiter can be modified to any string using the `--delimiter` argument.
 +
-The default `<terminator>` is a line terminator (i.e. `\n` on Posix and `\r\n` on Windows).
+The default `<terminator>` is a line terminator (i.e. `\n` on POSIX and `\r\n` on Windows).
 The terminator can be changed to `\0` by using the `--print0` argument.
 +
 ----
@@ -442,7 +442,7 @@ commands. Use `-x` to expand `@rspfile` response file invocations.
 target, show just the target's dependencies. _Available since Ninja 1.4._
 
 `missingdeps`:: given a list of targets, look for targets that depend on
-a generated file, but do not have a properly (possibly transitive) dependency
+a generated file, but do not have a proper dependency (possibly transitive)
 on the generator.  Such targets may cause build flakiness on clean builds.
 +
 The broken targets can be found assuming deps log / depfile dependency
@@ -574,7 +574,7 @@ rule cc
 
 Variables can also be referenced using curly braces like `${in}`.
 
-Variables might better be called "bindings", in that a given variable
+Variables might be better called "bindings", in that a given variable
 cannot be changed, only shadowed.  There is more on how shadowing works
 later in this document.
 
@@ -817,7 +817,7 @@ where the file system is slow) loading these dependency files on
 startup is slow.
 
 Ninja 1.3 can instead process dependencies just after they're generated
-and save a compacted form of the same information in a Ninja-internal
+and save a compact form of the same information in a Ninja-internal
 database.
 
 Ninja supports this processing in three forms.
@@ -873,7 +873,7 @@ Each pool has a `depth` variable which is specified in the build file.
 The pool is then referred to with the `pool` variable on either a rule
 or a build statement.
 
-No matter what pools you specify, ninja will never run more concurrent jobs
+No matter what pools you specify, Ninja will never run more concurrent jobs
 than the default parallelism, or the number of jobs specified on the command
 line (with `-j`).
 
@@ -965,7 +965,7 @@ the `:` with +| _output1_ _output2_+ and do not appear in `$out`.
 Lexical syntax
 ~~~~~~~~~~~~~~
 
-Ninja is mostly encoding agnostic, as long as the bytes Ninja cares
+Ninja is mostly encoding-agnostic, as long as the bytes Ninja cares
 about (like slashes in paths) are ASCII.  This means e.g. UTF-8 or
 ISO-8859-1 input files ought to work.
 
@@ -1080,7 +1080,7 @@ keys.
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
 
-`dyndep`:: _(Available since Ninja 1.10.)_ Used only on build statements.
+`dyndep`:: _(Available since Ninja 1.10.)_ used only on build statements.
   If present, must name one of the build statement inputs.  Dynamically
   discovered dependency information will be loaded from the file.
   See the <<ref_dyndep,dynamic dependencies>> section for details.
@@ -1120,7 +1120,7 @@ keys.
   command and delete the file after successful execution of the
   command.
 +
-This is particularly useful on Windows OS, where the maximal length of
+This is particularly useful on Windows, where the maximum length of
 a command line is limited and response files must be used instead.
 +
 Use it like in the following example:
@@ -1137,9 +1137,9 @@ build myapp.exe: link a.obj b.obj [possibly many other .obj files]
 [[ref_rule_command]]
 Interpretation of the `command` variable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Fundamentally, command lines behave differently on Unixes and Windows.
+Fundamentally, command lines behave differently on Unix and Windows.
 
-On Unixes, commands are arrays of arguments.  The Ninja `command`
+On Unix systems, commands are arrays of arguments.  The Ninja `command`
 variable is passed directly to `sh -c`, which is then responsible for
 interpreting that string into an argv array.  Therefore, the quoting
 rules are those of the shell, and you can use all the normal shell
@@ -1428,7 +1428,7 @@ Consider a tarball `foo.tar` that we want to extract.  The extraction time
 can be recorded with a `foo.tar.stamp` file so that extraction repeats if
 the tarball changes, but we also would like to re-extract if any of the
 outputs is missing.  However, the list of outputs depends on the content
-of the tarball and cannot be spelled out explicitly in the ninja build file.
+of the tarball and cannot be spelled out explicitly in the Ninja build file.
 We can achieve this as follows:
 
 ----
