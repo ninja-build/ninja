@@ -1031,7 +1031,7 @@ keys.
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
 
-`dyndep`:: _(Available since Ninja 1.10.)_ Used only on build statements.
+`dyndep`:: _(Available since Ninja 1.10.)_ used only on build statements.
   If present, must name one of the build statement inputs.  Dynamically
   discovered dependency information will be loaded from the file.
   See the <<ref_dyndep,dynamic dependencies>> section for details.
