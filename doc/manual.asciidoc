@@ -1071,7 +1071,7 @@ keys.
   command and delete the file after successful execution of the
   command.
 +
-This is particularly useful on Windows OS, where the maximal length of
+This is particularly useful on Windows, where the maximum length of
 a command line is limited and response files must be used instead.
 +
 Use it like in the following example:
