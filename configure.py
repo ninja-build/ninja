@@ -621,7 +621,13 @@ if options.bootstrap:
 if options.gtest_source_dir:
     gtest_src_dir = options.gtest_source_dir
 else:
-    gtest_src_dir = os.environ.get('GTEST_SOURCE_DIR')
+    env_gtest = os.environ.get('GTEST_SOURCE_DIR')
+    if env_gtest:
+        gtest_src_dir = env_gtest
+    elif os.path.exists('/usr/src/googletest'):
+        gtest_src_dir = '/usr/src/googletest'
+    else:
+        gtest_src_dir = None
 
 if gtest_src_dir:
     # Verify GoogleTest source directory, and add its include directory
