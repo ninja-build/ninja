@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 include(CheckSymbolExists)
 include(CheckIPOSupported)
 
+set(CMAKE_CXX_STANDARD 17)
 option(NINJA_BUILD_BINARY "Build ninja binary" ON)
 option(NINJA_FORCE_PSELECT "Use pselect() even on platforms that provide ppoll()" OFF)
 
@@ -188,9 +189,6 @@ if("src/getopt.c" IN_LIST _src_ninja)
 	# compiler may build ninja.
 	set_property(SOURCE src/getopt.c PROPERTY LANGUAGE CXX)
 endif()
-
-target_compile_features(libninja PUBLIC cxx_std_17)
-target_compile_features(libninja-re2c PUBLIC cxx_std_17)
 
 #Fixes GetActiveProcessorCount on MinGW
 if(MINGW)
