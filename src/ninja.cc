@@ -73,16 +73,16 @@ struct Tool;
 /// Command-line options.
 struct Options {
   /// Build file to load.
-  const char* input_file;
+  const char* input_file = nullptr;
 
   /// Directory to change into before running.
-  const char* working_dir;
+  const char* working_dir = nullptr;
 
   /// Tool to run rather than building.
-  const Tool* tool;
+  const Tool* tool = nullptr;
 
   /// Whether phony cycles should warn or print an error.
-  bool phony_cycle_should_err;
+  bool phony_cycle_should_err = false;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
