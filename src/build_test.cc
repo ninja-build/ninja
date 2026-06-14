@@ -653,6 +653,7 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
       edge->rule().name() == "cc" ||
       edge->rule().name() == "cp_multi_msvc" ||
       edge->rule().name() == "cp_multi_gcc" ||
+      edge->rule().name() == "cp_other" ||
       edge->rule().name() == "touch" ||
       edge->rule().name() == "touch-interrupt" ||
       edge->rule().name() == "touch-fail-tick2") {
@@ -673,6 +674,17 @@ bool FakeCommandRunner::StartCommand(Edge* edge) {
     if (fs_->ReadFile(edge->inputs_[0]->path(), &content, &err) ==
         DiskInterface::Okay)
       fs_->WriteFile(edge->outputs_[0]->path(), content, false);
+  } else if (edge->rule().name() == "cp_inputs_to_outputs") {
+    assert(!edge->inputs_.empty());
+    assert(edge->outputs_.size() == edge->inputs_.size());
+    string content;
+    string err;
+    for (size_t i = 0; i < edge->inputs_.size(); ++i) {
+      if (fs_->ReadFile(edge->inputs_[i]->path(), &content, &err) ==
+          DiskInterface::Okay) {
+        fs_->WriteFile(edge->outputs_[i]->path(), content, false);
+      }
+    }
   } else if (edge->rule().name() == "touch-implicit-dep-out") {
     string dep = edge->GetBinding("test_dependency");
     fs_->Tick();
@@ -4161,6 +4173,47 @@ TEST_F(BuildTest, DyndepTwoLevelDiscoveredDirty) {
   EXPECT_EQ("touch in", command_runner_.commands_ran_[2]);
   EXPECT_EQ("touch tmp", command_runner_.commands_ran_[3]);
   EXPECT_EQ("touch out", command_runner_.commands_ran_[4]);
+}
+
+TEST_F(BuildTest, DyndepBuildMultiple) {
+  // Verify that multiple dyndep files can be produced by one edge
+  // and loaded in the opposite order than their dependents will run.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"rule touch\n"
+"  command = touch $out\n"
+"rule cp_inputs_to_outputs\n"
+"  command = cp dd3-in dd3 ; cp dd2-in dd2\n"
+"rule cp_other\n"
+"  command = cp out1 $out\n"
+"build dd3 dd2: cp_inputs_to_outputs dd3-in dd2-in\n"
+"build out3: touch in || dd3\n"
+"  dyndep = dd3\n"
+"build out2: cp_other || dd2\n"
+"  dyndep = dd2\n"
+"build out1: touch in\n"
+  ));
+  fs_.Create("in", "");
+  fs_.Create("dd3-in",
+"ninja_dyndep_version = 1\n"
+"build out3: dyndep | out2\n"
+);
+  fs_.Create("dd2-in",
+"ninja_dyndep_version = 1\n"
+"build out2: dyndep | out1\n"
+);
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  EXPECT_EQ("", err);
+
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+  ASSERT_EQ(4u, command_runner_.commands_ran_.size());
+  EXPECT_EQ("cp dd3-in dd3 ; cp dd2-in dd2", command_runner_.commands_ran_[0]);
+  EXPECT_EQ("touch out1", command_runner_.commands_ran_[1]);
+  EXPECT_EQ("cp out1 out2", command_runner_.commands_ran_[2]);
+  EXPECT_EQ("touch out3", command_runner_.commands_ran_[3]);
 }
 
 TEST_F(BuildTest, Validation) {
