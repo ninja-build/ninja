@@ -178,6 +178,7 @@ struct CommandRunner {
   /// Creates the RealCommandRunner. \arg jobserver can be nullptr if there
   /// is no jobserver pool to use.
   static CommandRunner* factory(const BuildConfig& config,
+                                Status* status,
                                 Jobserver::Client* jobserver);
 };
 
@@ -192,6 +193,7 @@ struct BuildConfig {
     VERBOSE
   };
   Verbosity verbosity = NORMAL;
+  bool multiline_console = false;
   bool dry_run = false;
   int parallelism = 1;
   bool disable_jobserver_client = false;

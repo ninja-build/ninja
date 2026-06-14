@@ -615,6 +615,7 @@ Builder::Builder(State* state, const BuildConfig& config, BuildLog* build_log,
       explanations_(g_explaining ? new Explanations(status) : nullptr),
       scan_(state, build_log, deps_log, disk_interface,
             &config_.depfile_parser_options, explanations_.get()) {
+  status->SetStartTimeMillis(start_time_millis);
   lock_file_path_ = ".ninja_lock";
   string build_dir = state_->bindings_.LookupVariable("builddir");
   if (!build_dir.empty())
@@ -715,7 +716,7 @@ ExitStatus Builder::Build(string* err) {
     if (config_.dry_run)
       command_runner_.reset(new DryRunCommandRunner);
     else
-      command_runner_.reset(CommandRunner::factory(config_, jobserver_.get()));
+      command_runner_.reset(CommandRunner::factory(config_, status_, jobserver_.get()));
     ;
   }
 
@@ -842,6 +843,7 @@ ExitStatus Builder::Build(string* err) {
   }
 
   status_->BuildFinished();
+  status_->Report();
   return ExitSuccess;
 }
 
@@ -851,6 +853,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     return true;
 
   int64_t start_time_millis = GetTimeMillis() - start_time_millis_;
+  edge->start_time_ = start_time_millis;
   running_edges_.insert(make_pair(edge, start_time_millis));
 
   status_->BuildEdgeStarted(edge, start_time_millis);

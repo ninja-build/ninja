@@ -258,8 +258,11 @@ SubprocessSet::WorkResult SubprocessSet::DoWork() {
   WorkResult work_result = WorkResult::NoWork;
 
   if (!GetQueuedCompletionStatus(ioport_, &bytes_read, (PULONG_PTR)&subproc,
-                                 &overlapped, INFINITE)) {
-    if (GetLastError() != ERROR_BROKEN_PIPE)
+                                 &overlapped, 100)) {
+    DWORD err = GetLastError();
+    if (err == WAIT_TIMEOUT)
+      return WorkResult::NoWork;
+    if (err != ERROR_BROKEN_PIPE)
       Win32Fatal("GetQueuedCompletionStatus");
   }
 

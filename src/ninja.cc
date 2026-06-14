@@ -233,6 +233,7 @@ void Usage(const BuildConfig& config) {
 "options:\n"
 "  --version      print ninja version (\"%s\")\n"
 "  -v, --verbose  show all command lines while building\n"
+"  -m             enable multiline status display when supported\n"
 "  --quiet        don't show progress status, just command output\n"
 "  --status FMT   progress status format using Ninja-style $vars\n"
 "                 (e.g. --status '[$finished/$total] ')\n"
@@ -1743,7 +1744,7 @@ int ReadFlags(int* argc, char*** argv,
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+      (opt = getopt_long(*argc, *argv, "d:f:j:k:l:mnt:vw:C:h", kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1788,6 +1789,9 @@ int ReadFlags(int* argc, char*** argv,
         config->max_load_average = value;
         break;
       }
+      case 'm':
+        config->multiline_console = true;
+        break;
       case 'n':
         config->dry_run = true;
         config->disable_jobserver_client = true;

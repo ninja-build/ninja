@@ -220,6 +220,8 @@ struct Edge {
   BindingEnv* env_ = nullptr;
   size_t id_ = 0;
   int64_t critical_path_weight_ = -1;
+  int64_t start_time_ = 0;
+  int sequence_ = 0;
 
   /// A Jobserver slot instance. Invalid by default.
   Jobserver::Slot job_slot_;
