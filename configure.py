@@ -662,7 +662,6 @@ if gtest_src_dir:
         'manifest_parser_test',
         'ninja_test',
         'state_test',
-        'string_piece_util',
         'string_piece_util_test',
         'subprocess_test',
         'test',
