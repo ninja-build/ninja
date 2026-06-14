@@ -1,8 +1,5 @@
 Description: emhash8::HashMap for C++14/17
-Version: 1.6.5 (commit bdebddbdce1b473bbc189178fd523ef4a876ea01)
+Version: 1.7.4 (commit c1e320e0a98da5b7dc7ac084adfc4c0a69a3a46a)
 URL: https://github.com/ktprime/emhash
-Copyright: Copyright (c) 2021-2024 Huang Yuanbing & bailuzhou AT 163.com
+Copyright: Copyright (c) 2021-2026 Huang Yuanbing & bailuzhou AT 163.com
 SPDX-License-Identifier: MIT
-Local changes:
- - Added includes for _mm_prefetch on MinGW.
- - Fixed some spelling errors to appease the linter.
