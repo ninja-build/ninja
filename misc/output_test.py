@@ -704,13 +704,13 @@ build foo: sleep
 """
         with BuildDir(plan) as b:
             for signum in (signal.SIGINT, signal.SIGHUP, signal.SIGTERM):
-                proc = subprocess.Popen([NINJA_PATH, "foo"], cwd=b.path, env=default_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                # Sleep a bit to let Ninja start the build, otherwise the signal could be received
-                # before it, and returncode will be -2.
-                time.sleep(0.2)
-                os.kill(proc.pid, signum)
-                proc.wait()
-                self.assertEqual(proc.returncode, 130, msg=f"For signal {signum}")
+                with subprocess.Popen([NINJA_PATH, "foo"], cwd=b.path, env=default_env, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as proc:
+                    # Sleep a bit to let Ninja start the build, otherwise the signal could be received
+                    # before it, and returncode will be -2.
+                    time.sleep(0.2)
+                    os.kill(proc.pid, signum)
+                    proc.wait()
+                    self.assertEqual(proc.returncode, 130, msg=f"For signal {signum}")
 
 
 if __name__ == '__main__':
