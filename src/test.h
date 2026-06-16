@@ -36,6 +36,7 @@ struct StateTestWithBuiltinRules : public testing::Test {
 
   /// Short way to get a Node by its path from state_.
   Node* GetNode(const std::string& path);
+  const Node* GetLookupNode(const std::string& path) const;
 
   State state_;
 };
