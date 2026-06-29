@@ -392,6 +392,57 @@ ninja: build stopped: subcommand failed.
                      flags="--status '<${finished}/${total}> '")
         self.assertEqual(output, '<1/1> echo a\x1b[K\ndo thing\n')
 
+    def test_multiline_flag(self) -> None:
+        long_title = 'component/subdir/very/long/job/title/that/should/keep/the/right_side/of/the_name'
+        output = run(
+            f'''rule echo
+  command = printf "done"
+  description = {long_title}
+
+build a: echo
+''',
+            flags='-m',
+            raw_output=True)
+        status_line = '[1/1] ...le/that/should/keep/the/right_side/of/the_name 0.0s\x1b[K'
+        self.assertEqual(len(status_line.replace('\x1b[K', '')), 60)
+        self.assertEqual(
+            output,
+            f'{status_line}\r\n'
+            f'\x1b[J\x1b[1A{status_line}\r\n'
+            '\x1b[Jdone\r\n')
+
+    def test_multiline_single_hidden_edge(self) -> None:
+        output = run(
+'''rule echo
+  command = sleep 1 && echo $out
+  description = echo $out
+
+build a: echo
+build b: echo
+build c: echo
+build d: echo
+build e: echo
+build f: echo
+build g: echo
+build h: echo
+build i: echo
+''',
+            flags='-j9 -m',
+            raw_output=True)
+        self.assertRegex(
+            output,
+            r'(?s)^'
+            r'\[1/9\] echo a\.+ 0\.\ds\x1b\[K\r\n'
+            r'\[2/9\] echo b\.+ 0\.\ds\x1b\[K\r\n'
+            r'\[3/9\] echo c\.+ 0\.\ds\x1b\[K\r\n'
+            r'\[4/9\] echo d\.+ 0\.\ds\x1b\[K\r\n'
+            r'\[5/9\] echo e\.+ 0\.\ds\x1b\[K\r\n'
+            r'\[6/9\] echo f\.+ 0\.\ds\x1b\[K\r\n'
+            r'\[7/9\] echo g\.+ 0\.\ds\x1b\[K\r\n'
+            r'\[8/9\] echo h\.+ 0\.\ds\x1b\[K\r\n'
+            r'\[9/9\] echo i\.+ 0\.\ds\x1b\[K\r\n')
+        self.assertNotIn('... and 1 more', output)
+
     def test_status_flag_unknown_variable(self) -> None:
         'Does --status fail clearly on an unknown variable?'
         self._test_expected_error(

@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstdint>
+#include <list>
 #include <memory>
 #include <queue>
 
@@ -27,17 +28,22 @@
 /// human-readable strings to stdout
 struct StatusPrinter : Status {
   explicit StatusPrinter(const BuildConfig& config);
+  void SetStartTimeMillis(int64_t start_time_millis) override
+  {
+    start_time_millis_ = start_time_millis;
+  }
 
   /// Callbacks for the Plan to notify us about adding/removing Edge's.
   void EdgeAddedToPlan(const Edge* edge) override;
   void EdgeRemovedFromPlan(const Edge* edge) override;
 
-  void BuildEdgeStarted(const Edge* edge, int64_t start_time_millis) override;
+  void BuildEdgeStarted(Edge* edge, int64_t start_time_millis) override;
   void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
                                  int64_t end_time_millis, ExitStatus exit_code,
                                  const std::string& output) override;
   void BuildStarted() override;
   void BuildFinished() override;
+  void Report() override;
 
   void NewLine() override;
   void Info(const char* msg, ...) override;
@@ -64,10 +70,18 @@ struct StatusPrinter : Status {
 
  private:
   void PrintStatus(const Edge* edge, int64_t time_millis);
+  void ClearReport();
 
   const BuildConfig& config_;
 
-  int started_edges_, finished_edges_, total_edges_, running_edges_;
+  int started_edges_, finished_edges_, total_edges_;
+  bool multi_line_status_ = false;
+  int max_status_lines_ = 8;
+  int term_cols_ = 0;
+  int last_reported_ = 0;
+  bool has_kept_line_ = false;
+  int64_t start_time_millis_ = 0;
+  std::list<const Edge*> edges_;
 
   /// How much wall clock elapsed so far?
   int64_t time_millis_ = 0;

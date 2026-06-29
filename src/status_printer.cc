@@ -29,12 +29,17 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#include <windows.h>
+#else
+#include <sys/ioctl.h>
+#include <unistd.h>
 #endif
 
 #include "build.h"
 #include "debug_flags.h"
 #include "exit_status.h"
 #include "lexer.h"
+#include "metrics.h"
 #include "util.h"
 
 using namespace std;
@@ -57,11 +62,37 @@ Status* Status::factory(const BuildConfig& config) {
 
 StatusPrinter::StatusPrinter(const BuildConfig& config)
     : config_(config), started_edges_(0), finished_edges_(0), total_edges_(0),
-      running_edges_(0), progress_status_format_(NULL),
+      progress_status_format_(NULL),
       current_rate_(config.parallelism) {
   // Don't do anything fancy in verbose mode.
   if (config_.verbosity != BuildConfig::NORMAL)
     printer_.set_smart_terminal(false);
+
+  // If explicitly enabled and the terminal supports ANSI codes, use
+  // multi-line real-time status.
+  if (config_.multiline_console && printer_.supports_color()) {
+    multi_line_status_ = true;
+    printer_.set_smart_terminal(false);
+
+    // Limit status lines to terminal height - 1 (for the cursor line),
+    // capped at 8.
+    int term_lines = 0;
+#ifdef _WIN32
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+      term_lines = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+      term_cols_ = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+    }
+#else
+    struct winsize ws = {};
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_row > 0)
+      term_lines = ws.ws_row;
+    if (ws.ws_col > 0)
+      term_cols_ = ws.ws_col;
+#endif
+    if (term_lines > 1 && term_lines - 1 < max_status_lines_)
+      max_status_lines_ = term_lines - 1;
+  }
 
   if (config.progress_status_format) {
     // --status uses Ninja-style variable expansion ($var / ${var}).
@@ -109,13 +140,14 @@ void StatusPrinter::EdgeRemovedFromPlan(const Edge* edge) {
     --eta_unpredictable_edges_remaining_;
 }
 
-void StatusPrinter::BuildEdgeStarted(const Edge* edge,
+void StatusPrinter::BuildEdgeStarted(Edge* edge,
                                      int64_t start_time_millis) {
+  edges_.push_back(edge);
   ++started_edges_;
-  ++running_edges_;
+  edge->sequence_ = started_edges_;
   time_millis_ = start_time_millis;
 
-  if (edge->use_console() || printer_.is_smart_terminal())
+  if (!multi_line_status_ && (edge->use_console() || printer_.is_smart_terminal()))
     PrintStatus(edge, start_time_millis);
 
   if (edge->use_console())
@@ -224,10 +256,30 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
   if (config_.verbosity == BuildConfig::QUIET)
     return;
 
-  if (!edge->use_console())
+  if (!multi_line_status_ && !edge->use_console())
     PrintStatus(edge, end_time_millis);
 
-  --running_edges_;
+  // In multi-line mode, overwrite the display block in place to avoid flicker.
+  if (multi_line_status_) {
+    // Move cursor to the top of the entire display block.
+    int total_up = last_reported_ + (has_kept_line_ ? 1 : 0);
+    if (total_up > 0)
+      printf("\x1B[%dA", total_up);
+    // Print the finished edge as the new kept line.
+    PrintStatus(edge, end_time_millis);
+    has_kept_line_ = true;
+    last_reported_ = 0;
+  }
+
+  edges_.remove(edge);
+
+  // If there's error/output, clear the old status lines below the kept line
+  // and let the next Report() redraw them after the output.
+  if (multi_line_status_ && (exit_code != ExitSuccess || !output.empty())) {
+    printf("\x1B[J");
+    fflush(stdout);
+    has_kept_line_ = false;
+  }
 
   // Print the command that is spewing before printing its output.
   if (exit_code != ExitSuccess) {
@@ -275,17 +327,73 @@ void StatusPrinter::BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
     _setmode(_fileno(stdout), _O_TEXT);  // End Windows extra CR fix
 #endif
   }
+
+  // Immediately redraw status area to avoid flicker.
+  if (multi_line_status_ && has_kept_line_)
+    Report();
 }
 
 void StatusPrinter::BuildStarted() {
   started_edges_ = 0;
   finished_edges_ = 0;
-  running_edges_ = 0;
+  edges_.clear();
+  last_reported_ = 0;
 }
 
 void StatusPrinter::BuildFinished() {
+  ClearReport();
   printer_.SetConsoleLocked(false);
   printer_.PrintOnNewLine("");
+}
+
+void StatusPrinter::Report() {
+  if (!multi_line_status_ || edges_.empty()) {
+    if (last_reported_ > 0)
+      ClearReport();
+    return;
+  }
+
+  if (config_.verbosity == BuildConfig::QUIET
+      || config_.verbosity == BuildConfig::NO_STATUS_UPDATE)
+    return;
+
+  const int64_t now = GetTimeMillis() - start_time_millis_;
+
+  if (last_reported_ > 0)
+    printf("\x1B[%dA", last_reported_);
+
+  int lines = 0;
+  list<const Edge*>::const_iterator edge = edges_.begin();
+  for (; edge != edges_.end(); ++edge) {
+    if (lines >= max_status_lines_)
+      break;
+    PrintStatus(*edge, now);
+    ++lines;
+  }
+  const int hidden_edges = int(edges_.size()) - max_status_lines_;
+  if (hidden_edges == 1 && edge != edges_.end()) {
+    PrintStatus(*edge, now);
+    ++lines;
+  } else if (hidden_edges > 0) {
+    char buf[64];
+    snprintf(buf, sizeof(buf), "  ... and %d more", hidden_edges);
+    printf("%s\x1B[K\n", buf);
+    ++lines;
+  }
+
+  // Clear any remaining lines from previous report or overwritten block.
+  printf("\x1B[J");
+
+  last_reported_ = lines;
+  fflush(stdout);
+}
+
+void StatusPrinter::ClearReport() {
+  if (last_reported_ > 0) {
+    printf("\x1B[%dA\x1B[J", last_reported_);
+    fflush(stdout);
+    last_reported_ = 0;
+  }
 }
 
 string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
@@ -314,7 +422,7 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
 
         // Running edges.
       case 'r': {
-        snprintf(buf, sizeof(buf), "%d", running_edges_);
+        snprintf(buf, sizeof(buf), "%d", int(edges_.size()));
         out += buf;
         break;
       }
@@ -444,7 +552,7 @@ string StatusPrinter::FormatStatusVariable(const string& name) const {
     return buf;
   }
   if (name == "running") {
-    snprintf(buf, sizeof(buf), "%d", running_edges_);
+    snprintf(buf, sizeof(buf), "%d", int(edges_.size()));
     return buf;
   }
   if (name == "remaining") {
@@ -525,9 +633,61 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
   if (status_eval_) {
     StatusFormatEnv env(this);
     to_print = status_eval_->Evaluate(&env) + to_print;
+  } else if (multi_line_status_) {
+    // In multi-line mode, show each edge's own start order number.
+    char prefix[32];
+    snprintf(prefix, sizeof(prefix), "[%d/%d] ", edge->sequence_,
+             total_edges_);
+    to_print = string(prefix) + to_print;
   } else {
     to_print = FormatProgressStatus(progress_status_format_, time_millis)
         + to_print;
+  }
+
+  if (multi_line_status_) {
+    // Add dot-padding and elapsed time for multi-line display.
+    const int ds = static_cast<int>(time_millis - edge->start_time_) / 100;
+    char tbuf[32];
+    snprintf(tbuf, sizeof(tbuf), " %d.%ds", ds / 10, ds % 10);
+    const int time_len = static_cast<int>(strlen(tbuf));
+
+    // Clamp visible width to 60 to keep the multiline block compact.
+    int width = term_cols_ > 0 ? min(term_cols_, 60) : 60;
+    int text_width = width - time_len;
+    if (text_width < 0)
+      text_width = 0;
+
+    size_t prefix_len = 0;
+    if (!status_eval_) {
+      char prefix[32];
+      snprintf(prefix, sizeof(prefix), "[%d/%d] ", edge->sequence_, total_edges_);
+      prefix_len = strlen(prefix);
+    }
+
+    if (int(to_print.size()) > text_width) {
+      if (text_width > static_cast<int>(prefix_len) + 3) {
+        string prefix = to_print.substr(0, prefix_len);
+        int title_width = text_width - static_cast<int>(prefix_len);
+        string title = to_print.substr(prefix_len);
+        if (int(title.size()) > title_width) {
+          title = "..." + title.substr(title.size() - (title_width - 3));
+        }
+        to_print = prefix + title;
+      } else if (text_width > 3) {
+        to_print = "..." + to_print.substr(to_print.size() - (text_width - 3));
+      } else {
+        to_print = to_print.substr(to_print.size() - text_width);
+      }
+    }
+
+    if (int(to_print.size()) < text_width) {
+      to_print += '.';
+      int pad = text_width - int(to_print.size());
+      if (pad > 0)
+        to_print += string(pad, '.');
+    }
+    to_print += tbuf;
+    to_print += "\x1B[K";
   }
 
   printer_.Print(to_print,

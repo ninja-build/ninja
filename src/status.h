@@ -25,15 +25,17 @@ struct Explanations;
 /// Abstract interface to object that tracks the status of a build:
 /// completion fraction, printing updates.
 struct Status {
+  virtual void SetStartTimeMillis(int64_t start_time_millis) = 0;
   virtual void EdgeAddedToPlan(const Edge* edge) = 0;
   virtual void EdgeRemovedFromPlan(const Edge* edge) = 0;
-  virtual void BuildEdgeStarted(const Edge* edge,
+  virtual void BuildEdgeStarted(Edge* edge,
                                 int64_t start_time_millis) = 0;
   virtual void BuildEdgeFinished(Edge* edge, int64_t start_time_millis,
                                  int64_t end_time_millis, ExitStatus exit_code,
                                  const std::string& output) = 0;
   virtual void BuildStarted() = 0;
   virtual void BuildFinished() = 0;
+  virtual void Report() = 0;
 
   /// Set the Explanations instance to use to report explanations,
   /// argument can be nullptr if no explanations need to be printed

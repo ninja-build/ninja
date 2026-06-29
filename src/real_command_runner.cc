@@ -16,12 +16,15 @@
 #include "exit_status.h"
 #include "jobserver.h"
 #include "limits.h"
+#include "metrics.h"
+#include "status.h"
 #include "subprocess.h"
 
 struct RealCommandRunner : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config,
+                             Status *status,
                              Jobserver::Client* jobserver)
-      : config_(config), jobserver_(jobserver) {}
+      : config_(config), status_(status),  jobserver_(jobserver) {}
   size_t CanRunMore() const override;
   bool StartCommand(Edge* edge) override;
   BuildResult WaitForCommand() override;
@@ -38,9 +41,11 @@ struct RealCommandRunner : public CommandRunner {
   }
 
   const BuildConfig& config_;
+  Status* status_;
   SubprocessSet subprocs_;
   Jobserver::Client* jobserver_ = nullptr;
   std::map<const Subprocess*, Edge*> subproc_to_edge_;
+  int64_t timer_ = 0;
 };
 
 std::vector<Edge*> RealCommandRunner::GetActiveEdges() {
@@ -119,6 +124,11 @@ BuildResult RealCommandRunner::WaitForCommandOrJobserverToken(
   // Wait for DoWork() to report activity
   while (work_result == SubprocessSet::WorkResult::NoWork) {
     work_result = subprocs_.DoWork();
+    const int64_t now = GetTimeMillis();
+    if (now - timer_ > 100) {
+      timer_ = now;
+      status_->Report();
+    }
   }
 
   // Address interrupts first, then subprocesses finishing, then finally
@@ -155,6 +165,7 @@ BuildResult RealCommandRunner::WaitForCommandOrJobserverToken(
 }
 
 CommandRunner* CommandRunner::factory(const BuildConfig& config,
+                                      Status* status,
                                       Jobserver::Client* jobserver) {
-  return new RealCommandRunner(config, jobserver);
+  return new RealCommandRunner(config, status, jobserver);
 }
