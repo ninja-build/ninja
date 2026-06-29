@@ -40,6 +40,7 @@
 #endif
 
 #include <algorithm>
+#include <filesystem>
 #include <vector>
 
 #if defined(__APPLE__) || defined(__FreeBSD__)
@@ -740,11 +741,11 @@ map<string, CGroupSubSys> ParseSelfCGroup() {
   return cgroups;
 }
 
-int ParseCgroupV1(std::string& path) {
-  std::pair<int64_t, bool> quota = readCount(path + "/cpu.cfs_quota_us");
+int ParseCgroupV1(const std::string& path) {
+  const auto quota = readCount(path + "/cpu.cfs_quota_us");
   if (!quota.second || quota.first == -1)
     return -1;
-  std::pair<int64_t, bool> period = readCount(path + "/cpu.cfs_period_us");
+  const auto period = readCount(path + "/cpu.cfs_period_us");
   if (!period.second)
     return -1;
   if (period.first == 0)
@@ -752,7 +753,7 @@ int ParseCgroupV1(std::string& path) {
   return quota.first / period.first;
 }
 
-int ParseCgroupV2(std::string& path) {
+int ParseCPUMax(const std::string& path) {
   // Read CPU quota from cgroup v2
   std::ifstream cpu_max(path + "/cpu.max");
   if (!cpu_max.is_open()) {
@@ -792,6 +793,28 @@ int ParseCgroupV2(std::string& path) {
   }
   return quota / period;
 }
+
+int ParseCgroupV2(const std::filesystem::path& path) {
+  auto min_cpu = ParseCPUMax(path);
+
+  // 1. cgroups without cpu controller do not have cpu.max
+  // 2. a parent cpu.max indicating lower CPU would take precedence
+  // -> parse cpu.max in self and parents to take lowest of all
+  std::error_code ec{};
+  std::filesystem::path cgroup{ "/sys/fs/cgroup/" },
+      relative{ std::filesystem::relative(path, cgroup, ec) };
+
+  if (!ec) {
+    for (const auto& seg : relative) {
+      cgroup /= seg;
+      if (const auto cpu = ParseCPUMax(cgroup); cpu != -1)
+        min_cpu = min_cpu == -1 ? cpu : std::min(min_cpu, cpu);
+    }
+  }
+
+  return min_cpu;
+}
+
 
 int ParseCPUFromCGroup() {
   auto subsystems = ParseSelfCGroup();
