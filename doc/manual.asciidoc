@@ -242,6 +242,8 @@ specified by `-j` or its default)
 `%w`:: Elapsed time in [h:]mm:ss format. _(Available since Ninja 1.12.)_
 `%W`:: Remaining time (ETA) in [h:]mm:ss format. _(Available since Ninja 1.12.)_
 `%P`:: The percentage (in ppp% format) of time elapsed out of predicted total runtime. _(Available since Ninja 1.12.)_
+`%b`:: OSC 9;4 progress bar for percentage of finished edges. _(Available since Ninja 1.14.)_
+`%B`:: OSC 9;4 progress bar for percentage of time elapsed out of predicted total runtime. _(Available since Ninja 1.14.)_
 `%%`:: A plain `%` character.
 
 The default progress status is `"[%f/%t] "` (note the trailing space
