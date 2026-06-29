@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "hash_map.h"
 #include "load_status.h"
@@ -51,7 +52,8 @@ struct BuildLog {
   bool OpenForWrite(const std::string& path, const BuildLogUser& user,
                     std::string* err);
   bool RecordCommand(Edge* edge, int start_time, int end_time,
-                     TimeStamp mtime = 0);
+                     TimeStamp mtime = 0,
+                     const std::vector<TimeStamp>& output_mtimes = {});
   void Close();
 
   /// Load the on-disk log.
@@ -63,6 +65,7 @@ struct BuildLog {
     int start_time = 0;
     int end_time = 0;
     TimeStamp mtime = 0;
+    TimeStamp output_mtime = 0;
 
     static uint64_t HashCommand(StringPiece command);
 
@@ -70,7 +73,7 @@ struct BuildLog {
     bool operator==(const LogEntry& o) const {
       return output == o.output && command_hash == o.command_hash &&
           start_time == o.start_time && end_time == o.end_time &&
-          mtime == o.mtime;
+          mtime == o.mtime && output_mtime == o.output_mtime;
     }
 
     explicit LogEntry(std::string output);
