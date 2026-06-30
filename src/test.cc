@@ -173,6 +173,15 @@ bool VirtualFileSystem::MakeDir(const string& path) {
   return true;  // success
 }
 
+bool VirtualFileSystem::UpdateFileModificationTime(const std::string& path) {
+  auto i = files_.find(path);
+  if (i != files_.end()) {
+    i->second.mtime = now_;
+    return true;
+  }
+  return false;
+}
+
 FileReader::Status VirtualFileSystem::ReadFile(const string& path,
                                                string* contents,
                                                string* err) {

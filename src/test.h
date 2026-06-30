@@ -64,6 +64,7 @@ struct VirtualFileSystem : public DiskInterface {
   TimeStamp Stat(const std::string& path, std::string* err) const override;
   bool WriteFile(const std::string& path, const std::string& contents,
                  bool /*crlf_on_windows*/) override;
+  bool UpdateFileModificationTime(const std::string& path) override;
   bool MakeDir(const std::string& path) override;
   Status ReadFile(const std::string& path, std::string* contents,
                   std::string* err) override;

@@ -57,6 +57,8 @@ struct DiskInterface: public FileReader {
   virtual bool WriteFile(const std::string& path, const std::string& contents,
                          bool crlf_on_windows) = 0;
 
+  virtual bool UpdateFileModificationTime(const std::string& path) = 0;
+
   /// Remove the file named @a path. It behaves like 'rm -f path' so no errors
   /// are reported if it does not exists.
   /// @returns 0 if the file has been removed,
@@ -77,6 +79,7 @@ struct RealDiskInterface : public DiskInterface {
   bool MakeDir(const std::string& path) override;
   bool WriteFile(const std::string& path, const std::string& contents,
                  bool crlf_on_windows) override;
+  bool UpdateFileModificationTime(const std::string& path) override;
   Status ReadFile(const std::string& path, std::string* contents,
                   std::string* err) override;
   int RemoveFile(const std::string& path) override;

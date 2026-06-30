@@ -29,6 +29,7 @@
 #include <sstream>
 #else
 #include <unistd.h>
+#include <fcntl.h>
 #endif
 
 #include "metrics.h"
@@ -310,6 +311,19 @@ bool RealDiskInterface::WriteFile(const string& path, const string& contents,
   }
 
   return true;
+}
+
+bool RealDiskInterface::UpdateFileModificationTime(const std::string& path) {
+#ifdef USE_UTIMENSAT
+  if (utimensat(AT_FDCWD, path.c_str(), NULL, 0)) {
+    Error("UpdateFileModificationTime(%s): Unable to update mtime. %s",
+          path.c_str(), strerror(errno));
+    return false;
+  }
+  return true;
+#else
+  return WriteFile(path, "", false);
+#endif
 }
 
 bool RealDiskInterface::MakeDir(const string& path) {
