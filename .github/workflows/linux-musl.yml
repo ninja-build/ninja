@@ -1,70 +1,324 @@
-name: ci-linux-musl
+name: Linux musl
 
 on:
-  workflow_dispatch:
   pull_request:
   push:
     branches: ['**']
-    tags-ignore: ['**']  # Don't trigger on tag pushes
+    tags-ignore: ['**'] # Don't trigger on tag pushes
   release:
     types: [published]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions: {}
-
 jobs:
+  alpine:
+    runs-on: ubuntu-latest
+    container:
+      image: alpine:edge
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install dependencies
+        run: |
+          apk add --no-cache \
+            build-base \
+            clang \
+            clang-extra-tools \
+            cmake \
+            gtest-dev \
+            ninja \
+            python3 \
+            re2c \
+            util-linux-dev \
+            util-linux-misc
+
+      - name: Linting
+        run: python3 misc/ci.py
+
+      - name: Configure with CMake
+        run: cmake -Bbuild -G"Ninja Multi-Config" -DNINJA_CLANG_TIDY=1
+
+      - name: Build debug ninja
+        working-directory: build
+        run: CLICOLOR_FORCE=1 ninja
+
+      - name: Test debug ninja
+        working-directory: build/Debug
+        run: |
+          ./ninja_test --gtest_color=yes
+          ../../misc/output_test.py
+          ../../misc/jobserver_test.py
+
+      - name: Build release ninja
+        working-directory: build
+        run: CLICOLOR_FORCE=1 ninja -f build-Release.ninja
+
+      - name: Test release ninja
+        working-directory: build/Release
+        run: |
+          ./ninja_test --gtest_color=yes
+          ../../misc/output_test.py
+          ../../misc/jobserver_test.py
+
   build:
-    runs-on: ubuntu-24.04
-    container: alpine:edge
     permissions:
-      contents: read
+      contents: write
+
     strategy:
       fail-fast: false
       matrix:
-        build_method: ["python", "cmake"]
+        include:
+          - host-os: ubuntu-latest
+            arch: ""
+            platform: linux/amd64
+          - host-os: ubuntu-24.04-arm
+            arch: "-aarch64"
+            platform: linux/arm64
+
+    defaults:
+      run:
+        shell: sh
+
+    runs-on: ${{ matrix.host-os }}
 
     steps:
-      - name: Host - checkout
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
-          fetch-depth: 0
           persist-credentials: false
 
-      - name: Install ninja build optional dependencies
-        run: apk update && apk add -u --no-cache python3 build-base cmake re2c
+      - uses: codespell-project/actions-codespell@master
+        with:
+          ignore_words_list: fo,wee,addin,notin
 
-      - name: Configure ninja build
-        if: matrix.build_method == 'cmake'
-        run: cmake -B build -D CMAKE_BUILD_TYPE="Release" -D CMAKE_COMPILE_WARNING_AS_ERROR="ON"
-
-      - name: Cmake Build ninja
-        if: matrix.build_method == 'cmake'
-        run: cmake --build build --parallel --config Release
-
-      - name: Cmake test ninja
-        if: matrix.build_method == 'cmake'
-        run: build/ninja_test --gtest_color=yes
-
-      - name: Python Build ninja
-        if: matrix.build_method == 'python'
-        run: python3 configure.py --warnings-as-errors --bootstrap --verbose
-
-      - name: Python test ninja
-        if: matrix.build_method == 'python'
+      - name: Build and test in Alpine
         run: |
-          ./ninja all
-          python3 misc/ninja_syntax_test.py
-          # python3 misc/output_test.py
+          docker run --rm \
+            --platform "${{ matrix.platform }}" \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            alpine:edge \
+            sh -euxc '
+              apk add --no-cache \
+                7zip \
+                build-base \
+                clang \
+                clang-extra-tools \
+                clang22-analyzer \
+                cmake \
+                file \
+                gtest-dev \
+                linux-headers \
+                ninja \
+                python3 \
+                re2c \
+                util-linux-misc
 
-      - name: Move ninja binary
-        if: matrix.build_method == 'cmake'
-        run: mv -f build/ninja ninja
+              SCAN_BUILD="$(command -v scan-build || true)"
 
-      - name: ninja-ninja --version
-        run: ./ninja --version >> $GITHUB_STEP_SUMMARY
+              if [ -z "$SCAN_BUILD" ]; then
+                SCAN_BUILD="$(find /usr/bin -maxdepth 1 -name "scan-build-*" | sort -V | tail -n 1)"
+              fi
 
-      - name: binary info via file
-        run: file ./ninja >> $GITHUB_STEP_SUMMARY
+              if [ -z "$SCAN_BUILD" ] || [ ! -x "$SCAN_BUILD" ]; then
+                echo "scan-build was not found"
+                find /usr/bin -maxdepth 1 -name "*scan-build*" -print
+                exit 1
+              fi
+
+              echo "Using $SCAN_BUILD"
+
+              export CFLAGS="-fstack-protector-all"
+              export CXXFLAGS="-fstack-protector-all"
+
+              "$SCAN_BUILD" -o scanlogs \
+                cmake \
+                  -GNinja \
+                  -DCMAKE_BUILD_TYPE=Debug \
+                  -B debug-build
+
+              "$SCAN_BUILD" -o scanlogs \
+                cmake --build debug-build --parallel --config Debug
+
+              ASAN_OPTIONS=detect_leaks=0 \
+                ./debug-build/ninja_test
+
+              unset CFLAGS
+              unset CXXFLAGS
+
+              cmake \
+                -GNinja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_COMPILE_WARNING_AS_ERROR=1 \
+                -DCMAKE_EXE_LINKER_FLAGS=-static \
+                -B release-build
+
+              cmake --build release-build --parallel --config Release
+
+              ./release-build/ninja_test
+
+              cd release-build
+              ../misc/output_test.py
+              ../misc/jobserver_test.py
+              cd ..
+
+              strip release-build/ninja
+
+              mkdir -p artifact
+
+              7z a \
+                "artifact/ninja-linux-musl${{ matrix.arch }}.zip" \
+                ./release-build/ninja
+            '
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ninja-musl${{ matrix.arch }}-binary-archives
+          path: artifact
+
+      - name: Upload release asset
+        if: github.event.action == 'published'
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifactContentType: application/zip
+          replacesArtifacts: true
+          omitBodyDuringUpdate: true
+          artifacts: ./artifact/ninja-linux-musl${{ matrix.arch }}.zip
+
+  test:
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        host-os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+        image:
+          - alpine:3.20
+          - alpine:edge
+
+    defaults:
+      run:
+        shell: sh
+
+    runs-on: ${{ matrix.host-os }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build and test in ${{ matrix.image }}
+        run: |
+          docker run --rm \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            "${{ matrix.image }}" \
+            sh -euxc '
+              apk add --no-cache \
+                build-base \
+                clang \
+                cmake \
+                gtest-dev \
+                ninja \
+                py3-pytest \
+                python3 \
+                util-linux-dev \
+                util-linux-misc
+
+              cmake \
+                -B build-gcc \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -G "Ninja Multi-Config"
+
+              cmake --build build-gcc --config Debug
+
+              ./build-gcc/Debug/ninja_test
+
+              cd build-gcc/Debug
+              python3 -m pytest --color=yes ../..
+              ../../misc/output_test.py
+              ../../misc/jobserver_test.py
+              cd ../..
+
+              cmake --build build-gcc --config Release
+
+              ./build-gcc/Release/ninja_test
+
+              cd build-gcc/Release
+              python3 -m pytest --color=yes ../..
+              ../../misc/output_test.py
+              ../../misc/jobserver_test.py
+              cd ../..
+
+              CC=clang CXX=clang++ \
+                cmake \
+                  -B build-clang \
+                  -DCMAKE_BUILD_TYPE=Debug \
+                  -G "Ninja Multi-Config"
+
+              cmake --build build-clang --config Debug
+
+              ./build-clang/Debug/ninja_test
+
+              cd build-clang/Debug
+              python3 -m pytest --color=yes ../..
+              ../../misc/output_test.py
+              ../../misc/jobserver_test.py
+              cd ../..
+
+              cmake --build build-clang --config Release
+
+              ./build-clang/Release/ninja_test
+
+              cd build-clang/Release
+              python3 -m pytest --color=yes ../..
+              ../../misc/output_test.py
+              ../../misc/jobserver_test.py
+            '
+
+  build-with-python:
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        host-os:
+          - ubuntu-latest
+          - ubuntu-24.04-arm
+        image:
+          - alpine:3.20
+          - alpine:edge
+
+    defaults:
+      run:
+        shell: sh
+
+    runs-on: ${{ matrix.host-os }}
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build with Python on ${{ matrix.host-os }} using ${{ matrix.image }}
+        run: |
+          docker run --rm \
+            --volume "$PWD:/src" \
+            --workdir /src \
+            "${{ matrix.image }}" \
+            sh -euxc '
+              apk add --no-cache \
+                build-base \
+                python3 \
+                util-linux
+
+              python3 configure.py --bootstrap
+              ./ninja all
+              python3 misc/ninja_syntax_test.py
+              ./misc/output_test.py
+              ./misc/jobserver_test.py
+            '

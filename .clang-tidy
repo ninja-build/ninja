@@ -19,3 +19,4 @@ WarningsAsErrors: '
   ,cppcoreguidelines-pro-type-cstyle-cast,
   ,bugprone-assignment-in-if-condition,
 '
+ExcludeHeaderFilterRegex: 'third_party/|generated/'
