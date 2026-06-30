@@ -806,9 +806,9 @@ int ParseCgroupV2(const std::filesystem::path& path) {
 
   if (!ec) {
     for (const auto& seg : relative) {
-      cgroup /= seg;
       if (const auto cpu = ParseCPUMax(cgroup); cpu != -1)
         min_cpu = min_cpu == -1 ? cpu : std::min(min_cpu, cpu);
+      cgroup /= seg;
     }
   }
 
