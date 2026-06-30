@@ -208,6 +208,11 @@ if(NINJA_BUILD_BINARY)
 	add_executable(ninja src/ninja.cc)
 	target_link_libraries(ninja PRIVATE libninja libninja-re2c)
 
+	option(NINJA_STATIC "Statically link the ninja executable" OFF)
+	if(NINJA_STATIC)
+		target_link_options(ninja PRIVATE -static)
+	endif()
+
 	if(WIN32)
 		target_sources(ninja PRIVATE windows/ninja.manifest)
 	endif()

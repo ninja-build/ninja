@@ -148,7 +148,7 @@ jobs:
                 -GNinja \
                 -DCMAKE_BUILD_TYPE=Release \
                 -DCMAKE_COMPILE_WARNING_AS_ERROR=1 \
-                -DCMAKE_EXE_LINKER_FLAGS=-static \
+                -DNINJA_STATIC=ON \
                 -B release-build
 
               cmake --build release-build --parallel --config Release
