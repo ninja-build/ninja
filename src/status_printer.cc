@@ -48,7 +48,7 @@ struct StatusFormatEnv : public Env {
   const string& description;
   StatusFormatEnv(const StatusPrinter* p, const string& d)
       : printer(p), description(d) {}
-  string LookupVariable(const string& var) override {
+  string LookupVariable(StringPiece var) override {
     if (var == "description")
       return description;
     return printer->FormatStatusVariable(var);
@@ -437,7 +437,7 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
   return out;
 }
 
-string StatusPrinter::FormatStatusVariable(const string& name) const {
+string StatusPrinter::FormatStatusVariable(StringPiece name) const {
   char buf[32];
 
   if (name == "started") {
@@ -506,7 +506,7 @@ string StatusPrinter::FormatStatusVariable(const string& name) const {
     return buf;
   }
 
-  Fatal("unknown variable '%s' in --status format", name.c_str());
+  Fatal("unknown variable '%s' in --status format", name.AsString().c_str());
   return "";
 }
 
