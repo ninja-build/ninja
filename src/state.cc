@@ -92,6 +92,13 @@ Edge* State::AddEdge(const Rule* rule) {
   return edge;
 }
 
+Node* State::AddNode(StringPiece path, uint64_t slash_bits){
+  assert(LookupNode(path) == nullptr);
+  Node* node = new Node(path.AsString(), slash_bits);
+  paths_[node->path()] = node;
+  return node;
+}
+
 Node* State::GetNode(StringPiece path, uint64_t slash_bits) {
   Node* node = LookupNode(path);
   if (node)
@@ -130,6 +137,21 @@ void State::AddIn(Edge* edge, StringPiece path, uint64_t slash_bits) {
   node->set_generated_by_dep_loader(false);
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
+}
+
+bool State::AddOut(Edge* edge, Node* node){
+  if (Edge* other = node->in_edge()) {
+    if (other == edge) {
+      // *err = node->path() + " is defined as an output multiple times";
+    } else {
+      // *err = "multiple rules generate " + node->path();
+    }
+    return false;
+  }
+  edge->outputs_.push_back(node);
+  node->set_in_edge(edge);
+  node->set_generated_by_dep_loader(false);
+  return true;
 }
 
 bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits,

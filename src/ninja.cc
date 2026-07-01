@@ -35,6 +35,9 @@
 #include <unistd.h>
 #endif
 
+#include <fstream>
+
+#include "binary.h"
 #include "browse.h"
 #include "build.h"
 #include "build_log.h"
@@ -83,6 +86,9 @@ struct Options {
 
   /// Whether phony cycles should warn or print an error.
   bool phony_cycle_should_err;
+
+  /// Whether to read/write a binary manifest cache alongside build.ninja.
+  bool use_cache;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -248,7 +254,9 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
 "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
+"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n"
+"\n"
+"  --cache  use a binary manifest cache (.build.ninja.bin) to speed up parsing\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -1731,13 +1739,14 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_STATUS = 3 };
+  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_STATUS = 3, OPT_CACHE = 4 };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
     { "status", required_argument, NULL, OPT_STATUS },
+    { "cache", no_argument, NULL, OPT_CACHE },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1805,6 +1814,9 @@ int ReadFlags(int* argc, char*** argv,
         break;
       case OPT_STATUS:
         config->progress_status_format = optarg;
+        break;
+      case OPT_CACHE:
+        options->use_cache = true;
         break;
       case 'w':
         if (!WarningEnable(optarg, options))
@@ -1874,11 +1886,42 @@ NORETURN void real_main(int argc, char** argv) {
     if (options.phony_cycle_should_err) {
       parser_opts.phony_cycle_action_ = kPhonyCycleActionError;
     }
-    ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
     string err;
-    if (!parser.Load(options.input_file, &err)) {
-      status->Error("%s", err.c_str());
-      exit(1);
+
+    // Derive the hidden cache path by prepending '.' to the entire path
+    // and appending '.bin'.
+    auto BinPath = [](const char* input_file) -> std::string {
+      return "." + string(input_file) + ".bin";
+    };
+
+    bool loaded = false;
+    if (options.use_cache) {
+      const std::string bin_path = BinPath(options.input_file);
+      const TimeStamp ninja_mtime = ninja.disk_interface_.Stat(options.input_file, &err);
+      TimeStamp bin_mtime = ninja.disk_interface_.Stat(bin_path, &err);
+      if (bin_mtime < 0) bin_mtime = 0;  // treat stat error as missing
+
+      if (bin_mtime > 0 && ninja_mtime > 0 && bin_mtime >= ninja_mtime) {
+        std::ifstream in(bin_path, std::ios::binary);
+        loaded = ReadManifestCache(in, &ninja.state_);
+        if (!loaded)
+          Warning("%s",
+                  "Binary Manifest invalid, using ASCII-Manifest instead");
+        // loaded=false means format version mismatch; fall through to text parse.
+      }
+    }
+
+    if (!loaded) {
+      ManifestParser parser(&ninja.state_, &ninja.disk_interface_, parser_opts);
+      if (!parser.Load(options.input_file, &err)) {
+        status->Error("%s", err.c_str());
+        exit(1);
+      }
+      if (options.use_cache && !config.dry_run) {
+        const std::string bin_path = BinPath(options.input_file);
+        std::ofstream out(bin_path, std::ios::binary);
+        WriteManifestCache(out, &ninja.state_);
+      }
     }
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)
