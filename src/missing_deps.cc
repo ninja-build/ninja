@@ -148,7 +148,7 @@ void MissingDependencyScanner::ProcessNodeDeps(Node* node, Node** dep_nodes,
         }
       }
     }
-    missing_dep_path_count_ += missing_deps_rule_names.size();
+    missing_dep_path_count_ += static_cast<int>(missing_deps_rule_names.size());
     nodes_missing_deps_.insert(node);
   }
 }

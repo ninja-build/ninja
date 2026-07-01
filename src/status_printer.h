@@ -127,7 +127,7 @@ struct StatusPrinter : Status {
 
       if (times_.size() == N)
         times_.pop();
-      times_.push(time_millis);
+      times_.push(static_cast<double>(time_millis));
       if (times_.back() != times_.front())
         rate_ = times_.size() / ((times_.back() - times_.front()) / 1e3);
     }

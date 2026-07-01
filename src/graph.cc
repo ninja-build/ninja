@@ -769,7 +769,7 @@ bool ImplicitDepLoader::LoadDepsFromLog(Edge* edge, string* err) {
   size_t node_count = deps->node_count;
   edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
                        nodes, nodes + node_count);
-  edge->implicit_deps_ += node_count;
+  edge->implicit_deps_ += static_cast<int>(node_count);
   for (size_t i = 0; i < node_count; ++i) {
     nodes[i]->AddOutEdge(edge);
   }

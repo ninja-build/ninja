@@ -90,7 +90,7 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
   edge->outputs_.insert(edge->outputs_.end(),
                         dyndeps->implicit_outputs_.begin(),
                         dyndeps->implicit_outputs_.end());
-  edge->implicit_outs_ += dyndeps->implicit_outputs_.size();
+  edge->implicit_outs_ += static_cast<int>(dyndeps->implicit_outputs_.size());
 
   // Add this edge as incoming to each new output.
   for (Node* node : dyndeps->implicit_outputs_) {
@@ -106,7 +106,7 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
   edge->inputs_.insert(edge->inputs_.end() - edge->order_only_deps_,
                        dyndeps->implicit_inputs_.begin(),
                        dyndeps->implicit_inputs_.end());
-  edge->implicit_deps_ += dyndeps->implicit_inputs_.size();
+  edge->implicit_deps_ += static_cast<int>(dyndeps->implicit_inputs_.size());
 
   // Add this edge as outgoing from each new input.
   for (Node* node : dyndeps->implicit_inputs_)
