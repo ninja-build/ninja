@@ -137,7 +137,7 @@ Using Ninja for your project
 
 Ninja currently works on Unix-like systems and Windows. It's seen the
 most testing on Linux (and has the best performance there) but it runs
-fine on Mac OS X and FreeBSD.
+fine on macOS and FreeBSD.
 
 If your project is small, Ninja's speed impact is likely unnoticeable.
 (However, even for small projects it sometimes turns out that Ninja's
@@ -161,7 +161,7 @@ all platforms supported by Chrome.
 
 https://cmake.org/[CMake]:: A widely used meta-build system that
 can generate Ninja files on Linux as of CMake version 2.8.8.  Newer versions
-of CMake support generating Ninja files on Windows and Mac OS X too.
+of CMake support generating Ninja files on Windows and macOS too.
 
 https://github.com/ninja-build/ninja/wiki/List-of-generators-producing-ninja-build-files[others]:: Ninja ought to fit perfectly into other meta-build software
 like https://premake.github.io/[premake].  If you do this work,
@@ -206,7 +206,7 @@ This feature is automatically enabled under the following conditions:
 
 - The `MAKEFLAGS` environment variable is defined and describes a valid
   jobserver mode using `--jobserver-auth=SEMAPHORE_NAME` on Windows, or
-  `--jobserver-auth=fifo:PATH` on Posix.
+  `--jobserver-auth=fifo:PATH` on POSIX.
 
 In this case, Ninja will use the jobserver pool of job slots to control
 parallelism, instead of its default parallel implementation.
@@ -214,7 +214,7 @@ parallelism, instead of its default parallel implementation.
 Note that load-average limitations (i.e. when using `-l<count>`)
 are still being enforced in this mode.
 
-IMPORTANT: On Posix, only the FIFO-based version of the protocol, which is
+IMPORTANT: On POSIX, only the FIFO-based version of the protocol, which is
 implemented by GNU Make 4.4 and higher, is supported. Ninja will detect
 when a pipe-based jobserver is being used (i.e. when `MAKEFLAGS` contains
 `--jobserver-auth=<read>,<write>`) and will print a warning, but will
@@ -348,7 +348,7 @@ The output will be a series of lines with the following elements:
 The default `<delimiter>` is a single TAB character.
 The delimiter can be modified to any string using the `--delimiter` argument.
 +
-The default `<terminator>` is a line terminator (i.e. `\n` on Posix and `\r\n` on Windows).
+The default `<terminator>` is a line terminator (i.e. `\n` on POSIX and `\r\n` on Windows).
 The terminator can be changed to `\0` by using the `--print0` argument.
 +
 ----
@@ -926,7 +926,7 @@ the `:` with +| _output1_ _output2_+ and do not appear in `$out`.
 Lexical syntax
 ~~~~~~~~~~~~~~
 
-Ninja is mostly encoding agnostic, as long as the bytes Ninja cares
+Ninja is mostly encoding-agnostic, as long as the bytes Ninja cares
 about (like slashes in paths) are ASCII.  This means e.g. UTF-8 or
 ISO-8859-1 input files ought to work.
 
@@ -1036,7 +1036,7 @@ keys.
   the full command or its description; if a command fails, the full command
   line will always be printed before the command's output.
 
-`dyndep`:: _(Available since Ninja 1.10.)_ Used only on build statements.
+`dyndep`:: _(Available since Ninja 1.10.)_ used only on build statements.
   If present, must name one of the build statement inputs.  Dynamically
   discovered dependency information will be loaded from the file.
   See the <<ref_dyndep,dynamic dependencies>> section for details.
@@ -1076,7 +1076,7 @@ keys.
   command and delete the file after successful execution of the
   command.
 +
-This is particularly useful on Windows OS, where the maximal length of
+This is particularly useful on Windows, where the maximum length of
 a command line is limited and response files must be used instead.
 +
 Use it like in the following example:
@@ -1093,9 +1093,9 @@ build myapp.exe: link a.obj b.obj [possibly many other .obj files]
 [[ref_rule_command]]
 Interpretation of the `command` variable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Fundamentally, command lines behave differently on Unixes and Windows.
+Fundamentally, command lines behave differently on Unix and Windows.
 
-On Unixes, commands are arrays of arguments.  The Ninja `command`
+On Unix systems, commands are arrays of arguments.  The Ninja `command`
 variable is passed directly to `sh -c`, which is then responsible for
 interpreting that string into an argv array.  Therefore, the quoting
 rules are those of the shell, and you can use all the normal shell
