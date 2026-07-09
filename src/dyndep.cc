@@ -115,7 +115,7 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
   return true;
 }
 
-bool DyndepLoader::LoadDyndepFile(Node* file, DyndepFile* ddf,
+bool DyndepLoader::LoadDyndepFile(const Node* file, DyndepFile* ddf,
                                   std::string* err) const {
   DyndepParser parser(state_, disk_interface_, ddf);
   return parser.Load(file->path(), err);
