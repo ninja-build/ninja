@@ -235,6 +235,12 @@ struct TestDiskInterface : public DiskInterface {
     assert(false);
     return true;
   }
+
+  bool UpdateFileModificationTime(const std::string& path) override {
+    assert(false);
+    return true;
+  }
+
   bool MakeDir(const std::string& path) override {
     assert(false);
     return false;

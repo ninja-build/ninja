@@ -289,6 +289,10 @@ struct StatTest : public StateTestWithBuiltinRules,
     assert(false);
     return true;
   }
+  bool UpdateFileModificationTime(const string& path) override {
+    assert(false);
+    return true;
+  }
   bool MakeDir(const string& path) override {
     assert(false);
     return false;
