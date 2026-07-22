@@ -77,6 +77,58 @@ BuildResult DryRunCommandRunner::WaitForCommand() {
   return BuildResult::CommandCompleted{ edge, status };
 }
 
+/// Tracks the ninja lock file we have written so it can be removed at process
+/// exit even on code paths that bypass C++ stack unwinding (e.g. Fatal()).
+struct LockFileGuard {
+  std::string path;
+  int pid = 0;
+  bool atexit_registered = false;
+};
+
+LockFileGuard& GetLockFileGuard() {
+  static LockFileGuard guard;
+  return guard;
+}
+
+/// Removes the lock file at exit, but only if it still contains our PID.
+/// This avoids removing a lock file that was overwritten by another concurrent
+/// ninja invocation.
+void RemoveLockFileAtExit() {
+  LockFileGuard& guard = GetLockFileGuard();
+  if (guard.path.empty() || guard.pid == 0) {
+    return;
+  }
+  FILE* fp = fopen(guard.path.c_str(), "rb");
+  if (!fp) {
+    return;
+  }
+  char buf[32];
+  size_t n = fread(buf, 1, sizeof(buf) - 1, fp);
+  buf[n] = '\0';
+  fclose(fp);
+  char* end = nullptr;
+  long pid = strtol(buf, &end, 10);
+  if (end != buf && pid > 0 && static_cast<int>(pid) == guard.pid) {
+    remove(guard.path.c_str());
+  }
+}
+
+void RegisterLockFileGuard(const std::string& path, int pid) {
+  LockFileGuard& guard = GetLockFileGuard();
+  guard.path = path;
+  guard.pid = pid;
+  if (!guard.atexit_registered) {
+    atexit(&RemoveLockFileAtExit);
+    guard.atexit_registered = true;
+  }
+}
+
+void ClearLockFileGuard() {
+  LockFileGuard& guard = GetLockFileGuard();
+  guard.path.clear();
+  guard.pid = 0;
+}
+
 }  // namespace
 
 Plan::Plan(Builder* builder)
@@ -673,6 +725,7 @@ void Builder::Cleanup() {
   string err;
   if (disk_interface_->Stat(lock_file_path_, &err) > 0)
     disk_interface_->RemoveFile(lock_file_path_);
+  ClearLockFileGuard();
 }
 
 Node* Builder::AddTarget(const string& name, string* err) {
@@ -882,6 +935,7 @@ bool Builder::StartEdge(Edge* edge, string* err) {
       char pid_str[32];
       snprintf(pid_str, sizeof(pid_str), "%d", GetPid());
       disk_interface_->WriteFile(lock_file_path_, pid_str, false);
+      RegisterLockFileGuard(lock_file_path_, GetPid());
       build_start = disk_interface_->Stat(lock_file_path_, err);
       if (build_start == -1)
         build_start = 0;
