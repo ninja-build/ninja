@@ -125,9 +125,13 @@ Node* State::SpellcheckNode(const string& path) {
   return result;
 }
 
-void State::AddIn(Edge* edge, StringPiece path, uint64_t slash_bits) {
+void State::AddIn(Edge* edge, StringPiece path, uint64_t slash_bits,
+                  bool is_directory) {
   Node* node = GetNode(path, slash_bits);
   node->set_generated_by_dep_loader(false);
+  if (is_directory) {
+    node->set_directory(true);
+  }
   edge->inputs_.push_back(node);
   node->AddOutEdge(edge);
 }

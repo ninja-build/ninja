@@ -1176,6 +1176,28 @@ express the implicit dependency.)
 File paths are compared as is, which means that an absolute path and a
 relative path, pointing to the same file, are considered different by Ninja.
 
+[[dir_inputs]]
+Directory inputs
+~~~~~~~~~~~~~~~~
+
+_Available since Ninja 1.14._
+
+If an input path on a build line ends with a path separator (`/`), the input is
+treated as a directory rather than a regular file. When Ninja checks whether the
+build edge is up-to-date, it stats the directory itself and compares its
+modification time against the outputs.
+
+Most filesystems update a directory's modification time whenever entries are
+added to or removed from it, so a directory input is a convenient way to
+re-run a command when the *set* of files in a directory changes (for example,
+to regenerate an index when new source files are added). Changes to the
+contents of individual files inside the directory do not normally update the
+directory's modification time, so they will not by themselves trigger a rebuild
+- list the affected files explicitly (or via a depfile) if that is desired.
+
+A path with a trailing separator that exists but is not a directory is treated
+as missing.
+
 [[validations]]
 Validations
 ~~~~~~~~~~~

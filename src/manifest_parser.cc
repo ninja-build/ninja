@@ -363,9 +363,13 @@ bool ManifestParser::ParseEdge(string* err) {
     string path = i->Evaluate(env);
     if (path.empty())
       return lexer_.Error("empty path", err);
+    // A trailing path separator indicates that the input refers to a directory
+    // rather than a regular file. CanonicalizePath strips the separator, so
+    // detect it first.
+    bool is_directory = path.back() == '/';
     uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
-    state_->AddIn(edge, path, slash_bits);
+    state_->AddIn(edge, path, slash_bits, is_directory);
   }
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
