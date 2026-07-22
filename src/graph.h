@@ -110,6 +110,12 @@ struct Node {
     generated_by_dep_loader_ = value;
   }
 
+  /// True if this node refers to a directory (path was given with a trailing
+  /// slash in the manifest). When stat()ed, the directory's mtime is used to
+  /// determine whether dependents are out-of-date.
+  bool is_directory() const { return is_directory_; }
+  void set_directory(bool value) { is_directory_ = value; }
+
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }
 
@@ -158,6 +164,11 @@ private:
   /// all nodes have this flag set to true, since the deps and build logs
   /// can be loaded before the manifest.
   bool generated_by_dep_loader_ = true;
+
+  /// True if this node refers to a directory rather than a regular file.
+  /// Set when a manifest input/output path ends with a trailing slash. When
+  /// stat()ing, the path is treated as a directory and its mtime is used.
+  bool is_directory_ = false;
 
   /// A dense integer id for the node, assigned and used by DepsLog.
   int id_ = -1;
