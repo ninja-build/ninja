@@ -7,8 +7,5 @@ indent_size = 2
 insert_final_newline = true
 end_of_line = lf
 
-[CMakeLists.txt]
-indent_style = tab
-
 [*.py]
 indent_size = 4
