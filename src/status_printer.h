@@ -22,6 +22,7 @@
 #include "explanations.h"
 #include "line_printer.h"
 #include "status.h"
+#include "string_piece.h"
 
 /// Implementation of the Status interface that prints the status as
 /// human-readable strings to stdout
@@ -55,7 +56,7 @@ struct StatusPrinter : Status {
   /// Look up the value of a named status variable (used by `--status`,
   /// which evaluates a Ninja-style format string). Calls Fatal on an
   /// unknown name.
-  std::string FormatStatusVariable(const std::string& name) const;
+  std::string FormatStatusVariable(StringPiece name) const;
 
   /// Set the |explanations_| pointer. Used to implement `-d explain`.
   void SetExplanations(Explanations* explanations) override {

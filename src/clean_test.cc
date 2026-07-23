@@ -130,6 +130,26 @@ TEST_F(CleanTest, CleanTarget) {
   EXPECT_EQ(0u, fs_.files_removed_.size());
 }
 
+TEST_F(CleanTest, CleanTargetMultiOutput) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out1 out2: cat src1\n"
+"build out3: cat src2\n"));
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
+  fs_.Create("out3", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+
+  // Cleaning out1 should also clean out2 (same edge), but not out3.
+  ASSERT_EQ(0, cleaner.CleanTarget("out1"));
+  EXPECT_EQ(2, cleaner.cleaned_files_count());
+
+  string err;
+  EXPECT_EQ(0, fs_.Stat("out1", &err));
+  EXPECT_EQ(0, fs_.Stat("out2", &err));
+  EXPECT_LT(0, fs_.Stat("out3", &err));
+}
+
 TEST_F(CleanTest, CleanTargetDryRun) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build in1: cat src1\n"

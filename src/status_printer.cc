@@ -41,11 +41,16 @@ using namespace std;
 
 namespace {
 /// Env that resolves variables in a `--status` format string by asking
-/// the StatusPrinter for their current value.
+/// the StatusPrinter for their current value. `$description` is handled
+/// here because its value is per-edge state passed in at print time.
 struct StatusFormatEnv : public Env {
   const StatusPrinter* printer;
-  explicit StatusFormatEnv(const StatusPrinter* p) : printer(p) {}
-  string LookupVariable(const string& var) override {
+  const string& description;
+  StatusFormatEnv(const StatusPrinter* p, const string& d)
+      : printer(p), description(d) {}
+  string LookupVariable(StringPiece var) override {
+    if (var == "description")
+      return description;
     return printer->FormatStatusVariable(var);
   }
 };
@@ -432,7 +437,7 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
   return out;
 }
 
-string StatusPrinter::FormatStatusVariable(const string& name) const {
+string StatusPrinter::FormatStatusVariable(StringPiece name) const {
   char buf[32];
 
   if (name == "started") {
@@ -501,7 +506,7 @@ string StatusPrinter::FormatStatusVariable(const string& name) const {
     return buf;
   }
 
-  Fatal("unknown variable '%s' in --status format", name.c_str());
+  Fatal("unknown variable '%s' in --status format", name.AsString().c_str());
   return "";
 }
 
@@ -518,16 +523,21 @@ void StatusPrinter::PrintStatus(const Edge* edge, int64_t time_millis) {
 
   bool force_full_command = config_.verbosity == BuildConfig::VERBOSE;
 
-  string to_print = edge->GetBinding("description");
-  if (to_print.empty() || force_full_command)
-    to_print = edge->GetBinding("command");
+  string description = edge->GetBinding("description");
+  if (description.empty() || force_full_command)
+    description = edge->GetBinding("command");
 
+  string to_print;
   if (status_eval_) {
-    StatusFormatEnv env(this);
-    to_print = status_eval_->Evaluate(&env) + to_print;
+    // For `--status`, the description is only shown if the user includes
+    // `$description` in the format string. In verbose mode (or when the
+    // description is empty) `$description` resolves to the command, matching
+    // the NINJA_STATUS / default behaviour.
+    StatusFormatEnv env(this, description);
+    to_print = status_eval_->Evaluate(&env);
   } else {
     to_print = FormatProgressStatus(progress_status_format_, time_millis)
-        + to_print;
+        + description;
   }
 
   printer_.Print(to_print,

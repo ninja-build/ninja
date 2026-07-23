@@ -33,6 +33,23 @@
 
 using namespace std;
 
+namespace {
+bool EnvHasNoColor() {
+  char* no_color = std::getenv("NO_COLOR");
+  return no_color && std::string(no_color) != "0";
+}
+
+bool EnvHasCliColorForce() {
+  char* clicolor_force = std::getenv("CLICOLOR_FORCE");
+  return clicolor_force && std::string(clicolor_force) != "0";
+}
+
+bool EnvHasForceColor() {
+  char* force_color = std::getenv("FORCE_COLOR");
+  return force_color && std::string(force_color) != "0";
+}
+}  // anonymous namespace
+
 LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   const char* term = getenv("TERM");
 #ifndef _WIN32
@@ -47,6 +64,9 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   }
 #endif
   supports_color_ = smart_terminal_;
+  if (EnvHasNoColor()) {
+    supports_color_ = false;
+  }
 #ifdef _WIN32
   // Try enabling ANSI escape sequence support on Windows 10 terminals.
   if (supports_color_) {
@@ -59,8 +79,11 @@ LinePrinter::LinePrinter() : have_blank_line_(true), console_locked_(false) {
   }
 #endif
   if (!supports_color_) {
-    const char* clicolor_force = getenv("CLICOLOR_FORCE");
-    supports_color_ = clicolor_force && std::string(clicolor_force) != "0";
+    // NO_COLOR and CLICOLOR_FORCE: NO_COLOR "overrides" CLICOLOR_FORCE
+    // NO_COLOR and FORCE_COLOR: FORCE_COLOR "overrides" NO_COLOR
+    if ((!EnvHasNoColor() && EnvHasCliColorForce()) || EnvHasForceColor()) {
+      supports_color_ = true;
+    }
   }
 }
 

@@ -47,8 +47,8 @@ using namespace std;
 
 namespace {
 
-#ifdef _WIN32
-/// Windows has no mkdtemp.  Implement it in terms of _mktemp_s.
+#ifdef _MSC_VER
+/// MSVC has no mkdtemp.  Implement it in terms of _mktemp_s.
 char* mkdtemp(char* name_template) {
   int err = _mktemp_s(name_template, strlen(name_template) + 1);
   if (err < 0) {
@@ -64,7 +64,7 @@ char* mkdtemp(char* name_template) {
 
   return name_template;
 }
-#endif  // _WIN32
+#endif  // _MSC_VER
 
 string GetSystemTempDir() {
 #ifdef _WIN32

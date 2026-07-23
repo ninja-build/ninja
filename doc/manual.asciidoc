@@ -269,6 +269,11 @@ The available variables and their `NINJA_STATUS` equivalents are:
 `$eta`:: `%W` -- Remaining time (ETA) in [h:]mm:ss format.
 `$predicted_progress`:: `%P` -- Percentage (in `ppp%` format) of time elapsed
 out of predicted total runtime.
+`$description`:: The current edge's `description` (or its command, when the
+description is empty or `--verbose` is in effect). Unlike `NINJA_STATUS`,
+which always appends the description after the formatted status, `--status`
+only shows the description where `$description` appears in the format. Omit
+it to drop the description entirely; place it wherever you want it shown.
 
 To produce a literal `$`, use `$$`. The `--status` flag was added in Ninja 1.14.
 

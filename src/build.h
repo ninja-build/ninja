@@ -19,6 +19,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "build_result.h"
@@ -85,9 +86,11 @@ struct Plan {
   void PrepareQueue();
 
   /// Update the build plan to account for modifications made to the graph
-  /// by information loaded from a dyndep file.
-  bool DyndepsLoaded(DependencyScan* scan, const Node* node,
-                     const DyndepFile& ddf, std::string* err);
+  /// by information loaded from a set of dyndep files.
+  bool DyndepsLoaded(DependencyScan* scan,
+                     const std::vector<Node*>& dyndep_nodes,
+                     const std::unordered_map<Edge*, Dyndeps>& dyndep_edges,
+                     std::string* err);
 
   /// Enumerate possible steps we want for an edge.
   enum Want
@@ -104,7 +107,9 @@ struct Plan {
 
  private:
   void ComputeCriticalPath();
-  bool RefreshDyndepDependents(DependencyScan* scan, const Node* node, std::string* err);
+  bool RefreshDyndepDependents(DependencyScan* scan,
+                               const std::vector<Node*>& dyndep_nodes,
+                               std::string* err);
   void UnmarkDependents(const Node* node, std::set<Node*>* dependents);
   bool AddSubTarget(const Node* node, const Node* dependent, std::string* err,
                     std::set<Edge*>* dyndep_walk);
@@ -239,8 +244,8 @@ struct Builder {
     scan_.set_build_log(log);
   }
 
-  /// Load the dyndep information provided by the given node.
-  bool LoadDyndeps(Node* node, std::string* err);
+  /// Load the dyndep information provided by the given edge's outputs.
+  bool LoadDyndeps(Edge* edge, std::string* err);
 
   State* state_;
   const BuildConfig& config_;
