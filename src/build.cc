@@ -865,7 +865,12 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     if (!disk_interface_->MakeDirs((*o)->path()))
       return false;
     if (build_start == -1) {
-      disk_interface_->WriteFile(lock_file_path_, "", false);
+      disk_interface_->WriteFile(lock_file_path_, ".", false);
+      // It's necessary to write at least one byte to the lock file because
+      // otherwise, certain filesystems (e.g. tmpfs on macOS; AWS FSx mounted
+      // via NFS) expose a bug in their fopen() implementations where they
+      // fail to update the lock file's mtime. (POSIX requires that fopen()
+      // update the file's mtime when the mode is "wb".)
       build_start = disk_interface_->Stat(lock_file_path_, err);
       if (build_start == -1)
         build_start = 0;
