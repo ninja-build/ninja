@@ -119,7 +119,7 @@ TEST(IncludesNormalize, LongInvalidPath) {
   char kExactlyMaxPath[_MAX_PATH + 1];
   ASSERT_STRNE(_getcwd(kExactlyMaxPath, sizeof kExactlyMaxPath), NULL);
 
-  int cwd_len = strlen(kExactlyMaxPath);
+  int cwd_len = static_cast<int>(strlen(kExactlyMaxPath));
   ASSERT_LE(cwd_len + 3 + 1, _MAX_PATH);
   kExactlyMaxPath[cwd_len] = '\\';
   kExactlyMaxPath[cwd_len + 1] = 'a';

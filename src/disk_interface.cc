@@ -152,7 +152,10 @@ bool StatAllFilesInDir(const string& dir, map<string, TimeStamp>* stamps,
       continue;
     }
 
-    transform(lowername.begin(), lowername.end(), lowername.begin(), ::tolower);
+    transform(lowername.begin(), lowername.end(), lowername.begin(),
+              [](unsigned char c) {
+                return static_cast<char>(::tolower(c));
+              });
 
     if (ffd.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
       // File is a symlink, stat the linked file.
@@ -237,8 +240,11 @@ TimeStamp RealDiskInterface::Stat(const string& path, string* err) const {
   }
 
   string dir_lowercase = dir;
-  transform(dir.begin(), dir.end(), dir_lowercase.begin(), ::tolower);
-  transform(base.begin(), base.end(), base.begin(), ::tolower);
+  auto to_lower = [](unsigned char c) {
+    return static_cast<char>(::tolower(c));
+  };
+  transform(dir.begin(), dir.end(), dir_lowercase.begin(), to_lower);
+  transform(base.begin(), base.end(), base.begin(), to_lower);
 
   Cache::iterator ci = cache_.find(dir_lowercase);
   if (ci == cache_.end()) {

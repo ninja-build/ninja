@@ -170,7 +170,10 @@ getopt_internal (int argc, char **argv, char *shortopts,
     }
   /* if this is our first time through */
   if (optind == 0)
-    optind = optwhere = 1;
+    {
+      optind = 1;
+      optwhere = 1;
+    }
 
   /* define ordering */
   if (shortopts != NULL && (*shortopts == '-' || *shortopts == '+'))
@@ -200,14 +203,14 @@ getopt_internal (int argc, char **argv, char *shortopts,
           if (argv[optind] == NULL)
             {
               /* no more options */
-              optind = permute_from;
+              optind = (int)permute_from;
               return EOF;
             }
           else if (strcmp (argv[optind], "--") == 0)
             {
               /* no more options, but have to get `--' out of the way */
               permute (argv + permute_from, num_nonopts, 1);
-              optind = permute_from + 1;
+              optind = (int)permute_from + 1;
               return EOF;
             }
           break;
@@ -363,7 +366,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
   if (ordering == PERMUTE && optwhere == 1 && num_nonopts != 0)
     {
       permute (argv + permute_from, num_nonopts, 1 + arg_next);
-      optind = permute_from + 1 + arg_next;
+      optind = (int)permute_from + 1 + arg_next;
     }
   else if (optwhere == 1)
     optind = optind + 1 + arg_next;
