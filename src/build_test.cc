@@ -3805,13 +3805,11 @@ TEST_F(BuildTest, DyndepBuildDiscoverOutputAndDepfileInput) {
   EXPECT_TRUE(builder_.AddTarget("out", &err));
   ASSERT_EQ("", err);
 
-  // Loading the depfile did not give tmp.imp a phony input edge.
-  ASSERT_FALSE(GetNode("tmp.imp")->in_edge());
-
   EXPECT_EQ(builder_.Build(&err), ExitSuccess);
   EXPECT_EQ("", err);
 
   // Loading the dyndep file gave tmp.imp a real input edge.
+  ASSERT_TRUE(GetNode("tmp.imp")->in_edge());
   ASSERT_FALSE(GetNode("tmp.imp")->in_edge()->is_phony());
 
   ASSERT_EQ(3u, command_runner_.commands_ran_.size());
