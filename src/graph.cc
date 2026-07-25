@@ -348,9 +348,10 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
 /// inputs. The `most_recent_input` pointer is updated if a newer input (based
 /// on mtime) is found.
 ///
-/// @param input_range  Defines the subset of inputs to process. The first
-///                     element is the offset from the beginning, the second
-///                     the offset from the end of the input list.
+/// If `dirty` is set to true, `most_recent_input` is no longer guaranteed to
+/// contain a valid value and should not be used.
+///
+/// @param input_range  Defines the subset of inputs to process.
 /// @param most_recent_input  Will be updated to the newest non-dirty regular
 ///                           input, if applicable.
 /// @param dirty        Set to true if any regular input is dirty or missing.
@@ -367,21 +368,23 @@ bool DependencyScan::RecomputeEdgesInputsDirty(
   for (auto i : input_range) {
     if (!RecomputeNodeDirty(i, stack, validation_nodes, err))
       return false;
+
+    // If an input is not ready, neither are our outputs.
+    if (i->in_edge() && !i->in_edge()->outputs_ready_)
+      edge->outputs_ready_ = false;
   }
 
   for (auto i = input_range.begin(); i != input_range.end(); ++i) {
-    // If an input is not ready, neither are our outputs.
-    if (Edge* in_edge = (*i)->in_edge()) {
-      if (!in_edge->outputs_ready_)
-        edge->outputs_ready_ = false;
-    }
-
     if (!edge->is_order_only(i - edge->inputs_.cbegin())) {
       // If a regular input is dirty (or missing), we're dirty.
       // Otherwise consider mtime.
       if ((*i)->dirty()) {
         explanations_.Record(node, "%s is dirty", (*i)->path().c_str());
         dirty = true;
+        if (!explanations_.ptr())
+          return true;  // Early return only if no explanations are recorded,
+                        // otherwise only the first dirty input would be
+                        // recorded.
       } else {
         if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime()) {
           most_recent_input = *i;
