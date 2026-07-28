@@ -418,6 +418,23 @@ struct DependencyScan {
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                           std::vector<Node*>* validation_nodes,
                           std::string* err);
+
+  /// Recomputes the dirtiness state of the specified input range of the node's
+  /// incoming edge. For each input in the given range, the function updates its
+  /// dirtiness state and propagates any effects to the node.
+  ///
+  /// Additionally, the node’s overall dirtiness is recalculated based on these
+  /// inputs. The `most_recent_input` pointer is updated if a newer input (based
+  /// on mtime) is found.
+  ///
+  /// If `dirty` is set to true, `most_recent_input` is no longer guaranteed to
+  /// contain a valid value and should not be used.
+  ///
+  /// @param input_range  Defines the subset of inputs to process.
+  /// @param most_recent_input  Will be updated to the newest non-dirty regular
+  ///                           input, if applicable.
+  /// @param dirty        Set to true if any regular input is dirty or missing.
+  /// @return true on success, false if an error occurred during recomputation.
   bool RecomputeEdgesInputsDirty(const Node* node, EdgeInputsRange input_range,
                                  Node*& most_recent_input, bool& dirty,
                                  std::vector<Node*>* stack,
