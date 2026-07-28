@@ -18,6 +18,8 @@
 #include "parser.h"
 
 #include <memory>
+#include <set>
+#include <string>
 #include <vector>
 
 struct BindingEnv;
@@ -72,6 +74,12 @@ private:
   // subparser_ is reused solely to get better reuse out ins_/outs_/validation_.
   std::unique_ptr<ManifestParser> subparser_;
   std::vector<EvalString> ins_, outs_, validations_;
+
+  // Tracks files currently being parsed to detect include cycles.
+  // The root parser owns the set; subparsers receive a pointer via
+  // ParseFileInclude().
+  std::unique_ptr<std::set<std::string>> owned_active_includes_;
+  std::set<std::string>* active_includes_ = nullptr;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_

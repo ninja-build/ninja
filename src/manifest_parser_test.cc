@@ -930,6 +930,64 @@ TEST_F(ParserTest, BrokenInclude) {
             , err);
 }
 
+TEST_F(ParserTest, IncludeCycle) {
+  fs_.Create("a.ninja", "include b.ninja\n");
+  fs_.Create("b.ninja", "include a.ninja\n");
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("include a.ninja\n", &err));
+  EXPECT_EQ("b.ninja:1: include cycle: 'a.ninja'\n"
+            "include a.ninja\n"
+            "               ^ near here"
+            , err);
+}
+
+TEST_F(ParserTest, IncludeCycleSelf) {
+  fs_.Create("self.ninja", "include self.ninja\n");
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("include self.ninja\n", &err));
+  EXPECT_EQ("self.ninja:1: include cycle: 'self.ninja'\n"
+            "include self.ninja\n"
+            "                  ^ near here"
+            , err);
+}
+
+TEST_F(ParserTest, SubninjaCycle) {
+  fs_.Create("a.ninja", "subninja b.ninja\n");
+  fs_.Create("b.ninja", "subninja a.ninja\n");
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("subninja a.ninja\n", &err));
+  EXPECT_EQ("b.ninja:1: include cycle: 'a.ninja'\n"
+            "subninja a.ninja\n"
+            "                ^ near here"
+            , err);
+}
+
+TEST_F(ParserTest, SubninjaCycleSelf) {
+  fs_.Create("self.ninja", "subninja self.ninja\n");
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("subninja self.ninja\n", &err));
+  EXPECT_EQ("self.ninja:1: include cycle: 'self.ninja'\n"
+            "subninja self.ninja\n"
+            "                   ^ near here"
+            , err);
+}
+
+TEST_F(ParserTest, IncludeSubninjaMixedCycle) {
+  fs_.Create("a.ninja", "include b.ninja\n");
+  fs_.Create("b.ninja", "subninja a.ninja\n");
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest("subninja a.ninja\n", &err));
+  EXPECT_EQ("b.ninja:1: include cycle: 'a.ninja'\n"
+            "subninja a.ninja\n"
+            "                ^ near here"
+            , err);
+}
+
 TEST_F(ParserTest, Implicit) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(
 "rule cat\n"
