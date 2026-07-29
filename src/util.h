@@ -26,6 +26,8 @@
 #include <string>
 #include <vector>
 
+#include "string_piece.h"
+
 #if !defined(__has_cpp_attribute)
 #  define __has_cpp_attribute(x)  0
 #endif
@@ -114,7 +116,6 @@ bool Truncate(const std::string& path, size_t size, std::string* err);
 #define chdir _chdir
 #define strtoull _strtoui64
 #define getcwd _getcwd
-#define PATH_MAX _MAX_PATH
 #endif
 
 
@@ -133,6 +134,12 @@ std::string GetLastErrorString();
 
 /// Calls Fatal() with a function name and GetLastErrorString.
 NORETURN void Win32Fatal(const char* function, const char* hint = NULL);
+
+/// Convert UTF-8 string to Win32 Unicode.
+/// On success, set |*output| then return true.
+/// On Failure, clear |*output|, set |*err| then return false.
+bool ConvertUTF8ToWin32Unicode(const StringPiece& input, std::wstring* output,
+                               std::string* err);
 
 /// Naive implementation of C++ 20 std::bit_cast(), used to fix Clang and GCC
 /// [-Wcast-function-type] warning on casting result of GetProcAddress().
