@@ -147,6 +147,7 @@ add_library(libninja OBJECT
   src/missing_deps.cc
   src/parser.cc
   src/real_command_runner.cc
+  src/scheduler_trace.cc
   src/state.cc
   src/status_printer.cc
   src/string_piece_util.cc
@@ -287,6 +288,7 @@ if(BUILD_TESTING)
     src/manifest_parser_test.cc
     src/missing_deps_test.cc
     src/ninja_test.cc
+    src/scheduler_trace_test.cc
     src/state_test.cc
     src/string_piece_test.cc
     src/string_piece_util_test.cc

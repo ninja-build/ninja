@@ -38,6 +38,7 @@
 #include "graph.h"
 #include "jobserver.h"
 #include "metrics.h"
+#include "scheduler_trace.h"
 #include "state.h"
 #include "status.h"
 #include "util.h"
@@ -90,6 +91,8 @@ void Plan::Reset() {
   wanted_edges_ = 0;
   ready_.clear();
   want_.clear();
+  traced_plan_edges_.clear();
+  traced_plan_dependencies_.clear();
 }
 
 bool Plan::AddTarget(const Node* target, string* err) {
@@ -169,15 +172,38 @@ Edge* Plan::FindWork() {
   // and return null in case of failure.
   if (builder_ && builder_->jobserver_.get()) {
     work->job_slot_ = builder_->jobserver_->TryAcquire();
-    if (!work->job_slot_.IsValid())
+    if (!work->job_slot_.IsValid()) {
+      if (builder_->scheduler_trace()) {
+        SchedulerTraceFields fields;
+        fields.push_back(make_pair("reason", "jobserver"));
+        fields.push_back(make_pair("available", "0"));
+        builder_->scheduler_trace()->RecordEdgeEvent("capacity", work,
+                                                     fields);
+      }
       return nullptr;
+    }
   }
 
   ready_.pop();
+  if (builder_ && builder_->scheduler_trace())
+    builder_->scheduler_trace()->RecordEdgeEvent("selected", work);
   return work;
 }
 
-void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
+void Plan::TracePoolResult(Edge* edge, const Edge* cause) {
+  if (!builder_ || !builder_->scheduler_trace())
+    return;
+  Pool* pool = edge->pool();
+  SchedulerTraceFields fields;
+  fields.push_back(make_pair("pool", pool->name().empty() ? "default"
+                                                          : pool->name()));
+  fields.push_back(make_pair("pool_depth", to_string(pool->depth())));
+  fields.push_back(make_pair("pool_use", to_string(pool->current_use())));
+  builder_->scheduler_trace()->RecordEdgeEvent("ready", edge, fields, cause);
+}
+
+void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e,
+                        const Edge* cause) {
   if (want_e->second == kWantToFinish) {
     // This edge has already been scheduled.  We can get here again if an edge
     // and one of its dependencies share an order-only input, or if a node
@@ -190,12 +216,34 @@ void Plan::ScheduleWork(map<Edge*, Want>::iterator want_e) {
 
   Edge* edge = want_e->first;
   Pool* pool = edge->pool();
+  if (builder_ && builder_->scheduler_trace()) {
+    SchedulerTraceFields fields;
+    fields.push_back(make_pair("pool", pool->name().empty() ? "default"
+                                                            : pool->name()));
+    builder_->scheduler_trace()->RecordEdgeEvent("eligible", edge, fields,
+                                                 cause);
+  }
   if (pool->ShouldDelayEdge()) {
     pool->DelayEdge(edge);
-    pool->RetrieveReadyEdges(&ready_);
+    vector<Edge*> released;
+    pool->RetrieveReadyEdges(&ready_, builder_ && builder_->scheduler_trace()
+                                          ? &released
+                                          : nullptr);
+    for (Edge* released_edge : released)
+      TracePoolResult(released_edge, cause);
+    if (pool->IsDelayed(edge) && builder_ && builder_->scheduler_trace()) {
+      SchedulerTraceFields fields;
+      fields.push_back(make_pair("reason", "pool_capacity"));
+      fields.push_back(make_pair("pool", pool->name()));
+      fields.push_back(make_pair("pool_depth", to_string(pool->depth())));
+      fields.push_back(make_pair("pool_use", to_string(pool->current_use())));
+      builder_->scheduler_trace()->RecordEdgeEvent("delayed", edge, fields,
+                                                   cause);
+    }
   } else {
     pool->EdgeScheduled(*edge);
     ready_.push(edge);
+    TracePoolResult(edge, cause);
   }
 }
 
@@ -204,10 +252,24 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   assert(e != want_.end());
   bool directly_wanted = e->second != kWantNothing;
 
+  if (directly_wanted && builder_ && builder_->scheduler_trace()) {
+    SchedulerTraceFields fields;
+    fields.push_back(make_pair("result", result == kEdgeSucceeded
+                                             ? "success"
+                                             : "failure"));
+    builder_->scheduler_trace()->RecordEdgeEvent("completed", edge, fields);
+  }
+
   // See if this job frees up any delayed jobs.
   if (directly_wanted)
     edge->pool()->EdgeFinished(*edge);
-  edge->pool()->RetrieveReadyEdges(&ready_);
+  vector<Edge*> released;
+  edge->pool()->RetrieveReadyEdges(&ready_,
+                                   builder_ && builder_->scheduler_trace()
+                                       ? &released
+                                       : nullptr);
+  for (Edge* released_edge : released)
+    TracePoolResult(released_edge, edge);
 
   // Release job slot if needed.
   if (builder_ && builder_->jobserver_.get())
@@ -245,17 +307,18 @@ bool Plan::NodeFinished(Node* node, string* err) {
       continue;
 
     // See if the edge is now ready.
-    if (!EdgeMaybeReady(want_e, err))
+    if (!EdgeMaybeReady(want_e, err, node->in_edge()))
       return false;
   }
   return true;
 }
 
-bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err) {
+bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err,
+                          const Edge* cause) {
   Edge* edge = want_e->first;
   if (edge->AllInputsReady()) {
     if (want_e->second != kWantNothing) {
-      ScheduleWork(want_e);
+      ScheduleWork(want_e, cause);
     } else {
       // We do not need to build this edge, but we might need to build one of
       // its dependents.
@@ -266,7 +329,8 @@ bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err) {
   return true;
 }
 
-bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
+bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err,
+                     const Edge* cause) {
   node->set_dirty(false);
 
   for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
@@ -304,10 +368,16 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
       if (!outputs_dirty) {
         for (vector<Node*>::iterator o = (*oe)->outputs_.begin();
              o != (*oe)->outputs_.end(); ++o) {
-          if (!CleanNode(scan, *o, err))
+          if (!CleanNode(scan, *o, err, cause))
             return false;
         }
 
+        if (builder_ && builder_->scheduler_trace()) {
+          SchedulerTraceFields fields;
+          fields.push_back(make_pair("reason", "restat"));
+          builder_->scheduler_trace()->RecordEdgeEvent("suppressed", *oe,
+                                                       fields, cause);
+        }
         want_e->second = kWantNothing;
         --wanted_edges_;
         if (!(*oe)->is_phony()) {
@@ -324,7 +394,7 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
 bool Plan::DyndepsLoaded(DependencyScan* scan,
                          const std::vector<Node*>& dyndep_nodes,
                          const std::unordered_map<Edge*, Dyndeps>& dyndep_edges,
-                         std::string* err) {
+                         std::string* err, const Edge* cause) {
   // Recompute the dirty state of all our direct and indirect dependents now
   // that our dyndep information has been loaded.
   if (!RefreshDyndepDependents(scan, dyndep_nodes, err))
@@ -383,17 +453,68 @@ bool Plan::DyndepsLoaded(DependencyScan* scan,
     }
   }
 
+  TracePlan();
+
   // See if any encountered edges are now ready.
   for (set<Edge*>::iterator wi = dyndep_walk.begin();
        wi != dyndep_walk.end(); ++wi) {
     map<Edge*, Want>::iterator want_e = want_.find(*wi);
     if (want_e == want_.end())
       continue;
-    if (!EdgeMaybeReady(want_e, err))
+    if (!EdgeMaybeReady(want_e, err, cause))
       return false;
   }
 
   return true;
+}
+
+void Plan::TracePlan() {
+  if (!builder_ || !builder_->scheduler_trace())
+    return;
+
+  vector<Edge*> planned;
+  for (const pair<Edge* const, Want>& want : want_) {
+    if (want.second != kWantNothing)
+      planned.push_back(want.first);
+  }
+  sort(planned.begin(), planned.end(), [](const Edge* left, const Edge* right) {
+    return SchedulerTrace::EdgeId(left) < SchedulerTrace::EdgeId(right);
+  });
+
+  for (Edge* edge : planned) {
+    if (!traced_plan_edges_.insert(edge).second)
+      continue;
+    SchedulerTraceFields fields;
+    fields.push_back(make_pair("rule", edge->rule().name()));
+    fields.push_back(make_pair("pool", edge->pool()->name().empty()
+                                           ? "default"
+                                           : edge->pool()->name()));
+    fields.push_back(
+        make_pair("pool_depth", to_string(edge->pool()->depth())));
+    fields.push_back(make_pair("weight", to_string(edge->weight())));
+    builder_->scheduler_trace()->RecordEdgeEvent("plan", edge, fields);
+  }
+
+  for (Edge* edge : planned) {
+    for (Node* input : edge->inputs_) {
+      Edge* dependency = input->in_edge();
+      map<Edge*, Want>::const_iterator dependency_want = want_.find(dependency);
+      if (!dependency || dependency_want == want_.end() ||
+          dependency_want->second == kWantNothing) {
+        continue;
+      }
+      pair<const Edge*, const Edge*> relation(edge, dependency);
+      if (!traced_plan_dependencies_.insert(relation).second)
+        continue;
+      SchedulerTraceFields fields;
+      fields.push_back(
+          make_pair("dependency", SchedulerTrace::EdgeId(dependency)));
+      fields.push_back(
+          make_pair("dependency_label", SchedulerTrace::EdgeLabel(dependency)));
+      builder_->scheduler_trace()->RecordEdgeEvent("plan_dependency", edge,
+                                                   fields);
+    }
+  }
 }
 
 bool Plan::RefreshDyndepDependents(DependencyScan* scan,
@@ -567,33 +688,86 @@ void Plan::ScheduleInitialEdges() {
   // Add ready edges to queue.
   assert(ready_.empty());
   std::set<Pool*> pools;
+  const bool tracing = builder_ && builder_->scheduler_trace();
+  std::map<Pool*, std::vector<Edge*> > traced_pool_candidates;
 
-  for (std::map<Edge*, Plan::Want>::iterator it = want_.begin(),
-           end = want_.end(); it != end; ++it) {
+  vector<Edge*> candidates;
+  if (tracing) {
+    for (const pair<Edge* const, Want>& want : want_) {
+      if (want.second == kWantToStart && want.first->AllInputsReady())
+        candidates.push_back(want.first);
+    }
+    sort(candidates.begin(), candidates.end(),
+         [](const Edge* left, const Edge* right) {
+           return SchedulerTrace::EdgeId(left) < SchedulerTrace::EdgeId(right);
+         });
+  }
+
+  auto schedule = [&](map<Edge*, Want>::iterator it) {
     Edge* edge = it->first;
-    Plan::Want want = it->second;
-    if (want == kWantToStart && edge->AllInputsReady()) {
-      Pool* pool = edge->pool();
-      if (pool->ShouldDelayEdge()) {
-        pool->DelayEdge(edge);
-        pools.insert(pool);
-      } else {
-        ScheduleWork(it);
+    Pool* pool = edge->pool();
+    if (pool->ShouldDelayEdge()) {
+      if (tracing) {
+        SchedulerTraceFields fields;
+        fields.push_back(make_pair("pool", pool->name().empty()
+                                               ? "default"
+                                               : pool->name()));
+        builder_->scheduler_trace()->RecordEdgeEvent("eligible", edge,
+                                                     fields);
+        traced_pool_candidates[pool].push_back(edge);
       }
+      pool->DelayEdge(edge);
+      pools.insert(pool);
+    } else {
+      ScheduleWork(it);
+    }
+  };
+
+  if (tracing) {
+    for (Edge* edge : candidates)
+      schedule(want_.find(edge));
+  } else {
+    for (map<Edge*, Want>::iterator it = want_.begin(), end = want_.end();
+         it != end; ++it) {
+      if (it->second == kWantToStart && it->first->AllInputsReady())
+        schedule(it);
     }
   }
 
   // Call RetrieveReadyEdges only once at the end so higher priority
   // edges are retrieved first, not the ones that happen to be first
   // in the want_ map.
-  for (std::set<Pool*>::iterator it=pools.begin(),
-           end = pools.end(); it != end; ++it) {
-    (*it)->RetrieveReadyEdges(&ready_);
+  if (!tracing) {
+    for (Pool* pool : pools)
+      pool->RetrieveReadyEdges(&ready_);
+    return;
+  }
+  vector<Pool*> ordered_pools(pools.begin(), pools.end());
+  sort(ordered_pools.begin(), ordered_pools.end(),
+       [](const Pool* left, const Pool* right) {
+         return left->name() < right->name();
+       });
+  for (Pool* pool : ordered_pools) {
+    vector<Edge*> released;
+    pool->RetrieveReadyEdges(&ready_, &released);
+    for (Edge* edge : released)
+      TracePoolResult(edge, nullptr);
+    for (Edge* edge : traced_pool_candidates[pool]) {
+      if (!pool->IsDelayed(edge))
+        continue;
+      SchedulerTraceFields fields;
+      fields.push_back(make_pair("reason", "pool_capacity"));
+      fields.push_back(make_pair("pool", pool->name()));
+      fields.push_back(make_pair("pool_depth", to_string(pool->depth())));
+      fields.push_back(make_pair("pool_use", to_string(pool->current_use())));
+      builder_->scheduler_trace()->RecordEdgeEvent("delayed", edge, fields);
+    }
   }
 }
 
 void Plan::PrepareQueue() {
   ComputeCriticalPath();
+  TracePlan();
   ScheduleInitialEdges();
 }
 
@@ -703,9 +877,155 @@ bool Builder::AlreadyUpToDate() const {
   return !plan_.more_to_do();
 }
 
+bool Builder::StartSchedulerTrace(string* err) {
+  if (scheduler_trace_)
+    return true;
+  if (!config_.scheduler_failure_edge.empty() &&
+      !config_.scheduler_trace_path) {
+    *err = "scheduler failure injection requires --scheduler-trace";
+    return false;
+  }
+  if (!config_.scheduler_trace_path)
+    return true;
+  const string graph_digest = config_.scheduler_graph_digest.empty()
+                                  ? SchedulerTrace::GraphDigest(*state_)
+                                  : config_.scheduler_graph_digest;
+  scheduler_trace_ = SchedulerTrace::Open(
+      config_.scheduler_trace_path, graph_digest, config_.parallelism,
+      config_.failures_allowed, config_.scheduler_manifest_generation,
+      config_.scheduler_trace_max_events, config_.scheduler_trace_max_bytes,
+      err);
+  if (!scheduler_trace_)
+    return false;
+  for (const Edge* edge : state_->edges_) {
+    SchedulerTraceInitialEdgeState& initial =
+        scheduler_trace_initial_graph_[edge];
+    for (const Node* input : edge->inputs_)
+      initial.inputs.insert(input->path());
+    for (const Node* output : edge->outputs_)
+      initial.outputs.insert(output->path());
+    initial.restat = edge->GetBindingBool("restat");
+  }
+  SchedulerTraceFields fields;
+  fields.push_back(make_pair(
+      "generation", to_string(config_.scheduler_manifest_generation)));
+  scheduler_trace_->RecordEvent("manifest_state", fields);
+  return CheckSchedulerTrace(err);
+}
+
+bool Builder::TraceInitialGraphChanges(string* err) {
+  if (!scheduler_trace_ || scheduler_trace_initial_graph_emitted_)
+    return true;
+  scheduler_trace_initial_graph_emitted_ = true;
+
+  vector<const Edge*> edges;
+  edges.reserve(scheduler_trace_initial_graph_.size());
+  for (const pair<const Edge* const, SchedulerTraceInitialEdgeState>& initial :
+       scheduler_trace_initial_graph_) {
+    edges.push_back(initial.first);
+  }
+  sort(edges.begin(), edges.end(), [](const Edge* left, const Edge* right) {
+    return SchedulerTrace::EdgeId(left) < SchedulerTrace::EdgeId(right);
+  });
+
+  for (const Edge* edge : edges) {
+    const SchedulerTraceInitialEdgeState& initial =
+        scheduler_trace_initial_graph_[edge];
+    vector<const Node*> inputs;
+    vector<const Node*> outputs;
+    for (const Node* input : edge->inputs_) {
+      if (!initial.inputs.count(input->path()))
+        inputs.push_back(input);
+    }
+    for (const Node* output : edge->outputs_) {
+      if (!initial.outputs.count(output->path()))
+        outputs.push_back(output);
+    }
+    sort(inputs.begin(), inputs.end(), [](const Node* left, const Node* right) {
+      return left->path() < right->path();
+    });
+    sort(outputs.begin(), outputs.end(),
+         [](const Node* left, const Node* right) {
+           return left->path() < right->path();
+         });
+
+    for (const Node* input : inputs) {
+      SchedulerTraceFields fields;
+      fields.push_back(make_pair("path", input->path()));
+      fields.push_back(make_pair("visibility", "initial_scan"));
+      if (edge->dyndep_)
+        fields.push_back(make_pair("dyndep_file", edge->dyndep_->path()));
+      if (input->in_edge()) {
+        fields.push_back(make_pair(
+            "dependency", SchedulerTrace::EdgeId(input->in_edge())));
+      }
+      scheduler_trace_->RecordEdgeEvent("dynamic_input", edge, fields);
+    }
+    for (const Node* output : outputs) {
+      SchedulerTraceFields fields;
+      fields.push_back(make_pair("path", output->path()));
+      fields.push_back(make_pair("visibility", "initial_scan"));
+      if (edge->dyndep_)
+        fields.push_back(make_pair("dyndep_file", edge->dyndep_->path()));
+      scheduler_trace_->RecordEdgeEvent("dynamic_output", edge, fields);
+    }
+    if (!initial.restat && edge->GetBindingBool("restat")) {
+      SchedulerTraceFields fields;
+      fields.push_back(make_pair("enabled", "1"));
+      fields.push_back(make_pair("visibility", "initial_scan"));
+      if (edge->dyndep_)
+        fields.push_back(make_pair("dyndep_file", edge->dyndep_->path()));
+      scheduler_trace_->RecordEdgeEvent("dynamic_restat", edge, fields);
+    }
+  }
+  scheduler_trace_initial_graph_.clear();
+  return CheckSchedulerTrace(err);
+}
+
+bool Builder::CheckSchedulerTrace(string* err) const {
+  if (!scheduler_trace_ || scheduler_trace_->ok())
+    return true;
+  *err = "scheduler trace: " + scheduler_trace_->error();
+  return false;
+}
+
+ExitStatus Builder::FinishSchedulerTrace(const string& status,
+                                         ExitStatus result, string* err) {
+  string final_status = status;
+  if (result == ExitSuccess && !config_.scheduler_failure_edge.empty() &&
+      !failure_was_injected_) {
+    *err = "requested scheduler failure edge '" +
+           config_.scheduler_failure_edge + "' was not reached";
+    result = ExitFailure;
+    final_status = "failure";
+  }
+  if (scheduler_trace_) {
+    string trace_err;
+    if (!scheduler_trace_->Finish(final_status, &trace_err)) {
+      *err = "scheduler trace: " + trace_err;
+      result = ExitFailure;
+    }
+  }
+  return result;
+}
+
+bool Builder::WriteNoWorkSchedulerTrace(string* err) {
+  if (!StartSchedulerTrace(err))
+    return false;
+  if (!TraceInitialGraphChanges(err))
+    return false;
+  return FinishSchedulerTrace("success", ExitSuccess, err) == ExitSuccess;
+}
+
 ExitStatus Builder::Build(string* err) {
   assert(!AlreadyUpToDate());
+  if (!StartSchedulerTrace(err))
+    return ExitFailure;
+  if (!TraceInitialGraphChanges(err))
+    return FinishSchedulerTrace("failure", ExitFailure, err);
   plan_.PrepareQueue();
+  if (!CheckSchedulerTrace(err))
+    return FinishSchedulerTrace("failure", ExitFailure, err);
 
   int pending_commands = 0;
   int failures_allowed = config_.failures_allowed;
@@ -722,6 +1042,16 @@ ExitStatus Builder::Build(string* err) {
   // We are about to start the build process.
   status_->BuildStarted();
 
+  auto trace_capacity = [&](size_t capacity, int pending_commands) {
+    if (!scheduler_trace_)
+      return;
+    SchedulerTraceFields fields;
+    fields.push_back(make_pair("reason", "command_capacity"));
+    fields.push_back(make_pair("available", to_string(capacity)));
+    fields.push_back(make_pair("pending", to_string(pending_commands)));
+    scheduler_trace_->RecordEvent("capacity", fields);
+  };
+
   // This main loop runs the entire build process.
   // It is structured like this:
   // First, we attempt to start as many commands as allowed by the
@@ -731,8 +1061,14 @@ ExitStatus Builder::Build(string* err) {
     // See if we can start any more commands.
     if (failures_allowed) {
       size_t capacity = command_runner_->CanRunMore();
+      trace_capacity(capacity, pending_commands);
       while (capacity > 0) {
         Edge* edge = plan_.FindWork();
+        if (!CheckSchedulerTrace(err)) {
+          Cleanup();
+          status_->BuildFinished();
+          return FinishSchedulerTrace("failure", ExitFailure, err);
+        }
         if (!edge)
           break;
 
@@ -743,14 +1079,14 @@ ExitStatus Builder::Build(string* err) {
         if (!StartEdge(edge, err)) {
           Cleanup();
           status_->BuildFinished();
-          return ExitFailure;
+          return FinishSchedulerTrace("failure", ExitFailure, err);
         }
 
         if (edge->is_phony()) {
           if (!plan_.EdgeFinished(edge, Plan::kEdgeSucceeded, err)) {
             Cleanup();
             status_->BuildFinished();
-            return ExitFailure;
+            return FinishSchedulerTrace("failure", ExitFailure, err);
           }
         } else {
           ++pending_commands;
@@ -761,6 +1097,7 @@ ExitStatus Builder::Build(string* err) {
           size_t current_capacity = command_runner_->CanRunMore();
           if (current_capacity < capacity)
             capacity = current_capacity;
+          trace_capacity(capacity, pending_commands);
         }
       }
 
@@ -774,8 +1111,16 @@ ExitStatus Builder::Build(string* err) {
       // Tell command runner that if jobserver tokens become available while
       // waiting, it should notify us - but only if we have more work to do.
       const bool watch_jobserver = plan_.work_ready();
-      BuildResult result =
-          command_runner_->WaitForCommandOrJobserverToken(watch_jobserver);
+      BuildResult result;
+      bool injected_result = false;
+      if (!injected_results_.empty()) {
+        result = std::move(injected_results_.front());
+        injected_results_.pop_front();
+        injected_result = true;
+      } else {
+        result =
+            command_runner_->WaitForCommandOrJobserverToken(watch_jobserver);
+      }
 
       if (result.finished()) {
         // Shouldn't be possible, since we assumed that there
@@ -783,11 +1128,12 @@ ExitStatus Builder::Build(string* err) {
         Fatal("internal error");
       }
 
-      if (result.interrupted() || result.exit_status() == ExitInterrupted) {
+      if (result.interrupted() ||
+          (result.exit_status() == ExitInterrupted && !injected_result)) {
         Cleanup();
         status_->BuildFinished();
         *err = "interrupted by user";
-        return result.exit_status();
+        return FinishSchedulerTrace("interrupted", result.exit_status(), err);
       } else if (result.command_completed()) {
         // We know that the result is from a completed command
         BuildResult::CommandCompleted& cc = result.GetCommandCompleted();
@@ -803,7 +1149,7 @@ ExitStatus Builder::Build(string* err) {
             cc.status = ExitFailure;
             SetFailureCode(result.exit_status());
           }
-          return result.exit_status();
+          return FinishSchedulerTrace("failure", result.exit_status(), err);
         }
 
         if (!result.success()) {
@@ -838,15 +1184,23 @@ ExitStatus Builder::Build(string* err) {
     else
       *err = "stuck [this is a bug]";
 
-    return GetExitCode();
+    return FinishSchedulerTrace("failure", GetExitCode(), err);
   }
 
   status_->BuildFinished();
-  return ExitSuccess;
+  return FinishSchedulerTrace("success", ExitSuccess, err);
 }
 
 bool Builder::StartEdge(Edge* edge, string* err) {
   METRIC_RECORD("StartEdge");
+  if (scheduler_trace_) {
+    SchedulerTraceFields fields;
+    if (jobserver_)
+      fields.push_back(make_pair("jobserver", "1"));
+    scheduler_trace_->RecordEdgeEvent("started", edge, fields);
+    if (!CheckSchedulerTrace(err))
+      return false;
+  }
   if (edge->is_phony())
     return true;
 
@@ -889,6 +1243,23 @@ bool Builder::StartEdge(Edge* edge, string* err) {
       return false;
   }
 
+  if (!config_.scheduler_failure_edge.empty() &&
+      SchedulerTrace::EdgeId(edge) == config_.scheduler_failure_edge) {
+    ExitStatus injected_status =
+        static_cast<ExitStatus>(config_.scheduler_failure_status);
+    SchedulerTraceFields fields;
+    fields.push_back(
+        make_pair("status", to_string(config_.scheduler_failure_status)));
+    scheduler_trace_->RecordEdgeEvent("injected", edge, fields);
+    if (!CheckSchedulerTrace(err))
+      return false;
+    injected_results_.push_back(BuildResult::CommandCompleted(
+        edge, injected_status, "scheduler failure injected"));
+    injected_edges_.insert(edge);
+    failure_was_injected_ = true;
+    return true;
+  }
+
   // start command computing and run it
   if (!command_runner_->StartCommand(edge)) {
     err->assign("command '" + edge->EvaluateCommand() + "' failed.");
@@ -922,6 +1293,30 @@ bool Builder::FinishCommand(BuildResult::CommandCompleted& result,
       result.output.append(extract_err);
       result.status = ExitFailure;
     }
+  }
+
+  const bool injected = injected_edges_.erase(edge) != 0;
+  if (scheduler_trace_) {
+    SchedulerTraceFields outcome_fields;
+    outcome_fields.push_back(
+        make_pair("status", to_string(static_cast<int>(result.status))));
+    outcome_fields.push_back(
+        make_pair("source", injected ? "injected" : "runner"));
+    scheduler_trace_->RecordEdgeEvent("outcome", edge, outcome_fields);
+
+    sort(deps_nodes.begin(), deps_nodes.end(),
+         [](const Node* left, const Node* right) {
+           return left->path() < right->path();
+         });
+    for (const Node* dependency : deps_nodes) {
+      SchedulerTraceFields dependency_fields;
+      dependency_fields.push_back(make_pair("path", dependency->path()));
+      dependency_fields.push_back(make_pair("scope", "next_build"));
+      scheduler_trace_->RecordEdgeEvent("deps_discovered", edge,
+                                        dependency_fields);
+    }
+    if (!CheckSchedulerTrace(err))
+      return false;
   }
 
   int64_t start_time_millis, end_time_millis;
@@ -959,11 +1354,20 @@ bool Builder::FinishCommand(BuildResult::CommandCompleted& result,
           return false;
         if (new_mtime > record_mtime)
           record_mtime = new_mtime;
+        if (scheduler_trace_ && (restat || generator)) {
+          SchedulerTraceFields fields;
+          fields.push_back(make_pair("output", (*o)->path()));
+          fields.push_back(make_pair("changed",
+                                     (*o)->mtime() == new_mtime ? "0" : "1"));
+          fields.push_back(
+              make_pair("mode", restat ? "restat" : "generator"));
+          scheduler_trace_->RecordEdgeEvent("restat", edge, fields);
+        }
         if ((*o)->mtime() == new_mtime && restat) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
-          if (!plan_.CleanNode(&scan_, *o, err))
+          if (!plan_.CleanNode(&scan_, *o, err, edge))
             return false;
           node_cleaned = true;
         }
@@ -1082,6 +1486,56 @@ bool Builder::LoadDyndeps(Edge* edge, string* err) {
       if (!scan_.LoadDyndeps(node, &ddf, err)) {
         return false;
       }
+      if (scheduler_trace_) {
+        vector<pair<Edge*, const Dyndeps*> > updates;
+        for (const pair<Edge* const, Dyndeps>& update : ddf)
+          updates.push_back(make_pair(update.first, &update.second));
+        sort(updates.begin(), updates.end(),
+             [](const pair<Edge*, const Dyndeps*>& left,
+                const pair<Edge*, const Dyndeps*>& right) {
+               return SchedulerTrace::EdgeId(left.first) <
+                      SchedulerTrace::EdgeId(right.first);
+             });
+        for (const pair<Edge*, const Dyndeps*>& update : updates) {
+          vector<Node*> inputs = update.second->implicit_inputs_;
+          vector<Node*> outputs = update.second->implicit_outputs_;
+          sort(inputs.begin(), inputs.end(),
+               [](const Node* left, const Node* right) {
+                 return left->path() < right->path();
+               });
+          sort(outputs.begin(), outputs.end(),
+               [](const Node* left, const Node* right) {
+                 return left->path() < right->path();
+               });
+          for (const Node* input : inputs) {
+            SchedulerTraceFields fields;
+            fields.push_back(make_pair("path", input->path()));
+            fields.push_back(make_pair("dyndep_file", node->path()));
+            if (input->in_edge()) {
+              fields.push_back(make_pair(
+                  "dependency", SchedulerTrace::EdgeId(input->in_edge())));
+            }
+            scheduler_trace_->RecordEdgeEvent("dynamic_input", update.first,
+                                              fields, edge);
+          }
+          for (const Node* output : outputs) {
+            SchedulerTraceFields fields;
+            fields.push_back(make_pair("path", output->path()));
+            fields.push_back(make_pair("dyndep_file", node->path()));
+            scheduler_trace_->RecordEdgeEvent("dynamic_output", update.first,
+                                              fields, edge);
+          }
+          if (update.second->restat_) {
+            SchedulerTraceFields fields;
+            fields.push_back(make_pair("dyndep_file", node->path()));
+            fields.push_back(make_pair("enabled", "1"));
+            scheduler_trace_->RecordEdgeEvent("dynamic_restat", update.first,
+                                              fields, edge);
+          }
+        }
+        if (!CheckSchedulerTrace(err))
+          return false;
+      }
       dyndep_nodes.emplace_back(node);
       dyndep_edges.insert(std::make_move_iterator(ddf.begin()),
                           std::make_move_iterator(ddf.end()));
@@ -1089,7 +1543,7 @@ bool Builder::LoadDyndeps(Edge* edge, string* err) {
   }
 
   // Update the build plan to account for dyndep modifications to the graph.
-  return plan_.DyndepsLoaded(&scan_, dyndep_nodes, dyndep_edges, err);
+  return plan_.DyndepsLoaded(&scan_, dyndep_nodes, dyndep_edges, err, edge);
 }
 
 void Builder::SetFailureCode(ExitStatus code) {

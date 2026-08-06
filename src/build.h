@@ -16,8 +16,10 @@
 #define NINJA_BUILD_H_
 
 #include <cstdio>
+#include <deque>
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -37,6 +39,7 @@ struct Explanations;
 struct Node;
 struct State;
 struct Status;
+class SchedulerTrace;
 
 /// Plan stores the state of a build plan: what we intend to build,
 /// which steps we're ready to execute.
@@ -74,7 +77,8 @@ struct Plan {
 
   /// Clean the given node during the build.
   /// Return false on error.
-  bool CleanNode(DependencyScan* scan, Node* node, std::string* err);
+  bool CleanNode(DependencyScan* scan, Node* node, std::string* err,
+                 const Edge* cause = nullptr);
 
   /// Number of edges with commands to run.
   int command_edge_count() const { return command_edges_; }
@@ -90,7 +94,7 @@ struct Plan {
   bool DyndepsLoaded(DependencyScan* scan,
                      const std::vector<Node*>& dyndep_nodes,
                      const std::unordered_map<Edge*, Dyndeps>& dyndep_edges,
-                     std::string* err);
+                     std::string* err, const Edge* cause = nullptr);
 
   /// Enumerate possible steps we want for an edge.
   enum Want
@@ -125,12 +129,19 @@ struct Plan {
   bool NodeFinished(Node* node, std::string* err);
 
   void EdgeWanted(const Edge* edge);
-  bool EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e, std::string* err);
+  bool EdgeMaybeReady(std::map<Edge*, Want>::iterator want_e,
+                      std::string* err, const Edge* cause = nullptr);
 
   /// Submits a ready edge as a candidate for execution.
   /// The edge may be delayed from running, for example if it's a member of a
   /// currently-full pool.
-  void ScheduleWork(std::map<Edge*, Want>::iterator want_e);
+  void ScheduleWork(std::map<Edge*, Want>::iterator want_e,
+                    const Edge* cause = nullptr);
+
+  /// Emit stable plan declarations after all targets are known and after
+  /// dynamic dependency updates add newly reachable work.
+  void TracePlan();
+  void TracePoolResult(Edge* edge, const Edge* cause);
 
   /// Keep track of which edges we want to build in this plan.  If this map does
   /// not contain an entry for an edge, we do not want to build the entry or its
@@ -149,6 +160,10 @@ struct Plan {
 
   /// Total remaining number of wanted edges.
   int wanted_edges_;
+
+  // Populated only when tracing is enabled.
+  std::set<const Edge*> traced_plan_edges_;
+  std::set<std::pair<const Edge*, const Edge*> > traced_plan_dependencies_;
 };
 
 struct BuildConfig;
@@ -203,6 +218,16 @@ struct BuildConfig {
   /// when non-null.
   const char* progress_status_format = nullptr;
   DepfileParserOptions depfile_parser_options;
+
+  // Scheduler diagnostics.  Empty paths keep the feature completely inert.
+  const char* scheduler_trace_path = nullptr;
+  const char* scheduler_replay_path = nullptr;
+  std::string scheduler_failure_edge;
+  int scheduler_failure_status = 1;
+  size_t scheduler_trace_max_events = 1000000;
+  uint64_t scheduler_trace_max_bytes = 256 * 1024 * 1024;
+  std::string scheduler_graph_digest;
+  int scheduler_manifest_generation = 0;
 };
 
 /// Builder wraps the build process: starting commands, updating status.
@@ -247,11 +272,21 @@ struct Builder {
   /// Load the dyndep information provided by the given edge's outputs.
   bool LoadDyndeps(Edge* edge, std::string* err);
 
+  SchedulerTrace* scheduler_trace() const { return scheduler_trace_.get(); }
+
+  /// Start tracing before target scanning can load persisted dynamic
+  /// dependencies into the graph.
+  bool StartSchedulerTrace(std::string* err);
+
+  /// Write a valid empty trace for an already-up-to-date build.
+  bool WriteNoWorkSchedulerTrace(std::string* err);
+
   State* state_;
   const BuildConfig& config_;
   Plan plan_;
   std::unique_ptr<Jobserver::Client> jobserver_;
   std::unique_ptr<CommandRunner> command_runner_;
+  std::unique_ptr<SchedulerTrace> scheduler_trace_;
   Status* status_;
 
   /// Returns ExitStatus or the exit code of the last failed job
@@ -285,6 +320,25 @@ private:
   /// Keep the global exit code for the build
   ExitStatus exit_code_ = ExitSuccess;
   void SetFailureCode(ExitStatus code);
+
+  struct SchedulerTraceInitialEdgeState {
+    std::set<std::string> inputs;
+    std::set<std::string> outputs;
+    bool restat = false;
+  };
+
+  bool TraceInitialGraphChanges(std::string* err);
+  ExitStatus FinishSchedulerTrace(const std::string& status,
+                                  ExitStatus result, std::string* err);
+  bool CheckSchedulerTrace(std::string* err) const;
+
+  std::map<const Edge*, SchedulerTraceInitialEdgeState>
+      scheduler_trace_initial_graph_;
+  bool scheduler_trace_initial_graph_emitted_ = false;
+
+  std::deque<BuildResult::CommandCompleted> injected_results_;
+  std::set<const Edge*> injected_edges_;
+  bool failure_was_injected_ = false;
 
   // Unimplemented copy ctor and operator= ensure we don't copy the auto_ptr.
   Builder(const Builder &other);        // DO NOT IMPLEMENT

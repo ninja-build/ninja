@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <string>
 
 #ifdef _WIN32
@@ -51,6 +52,7 @@
 #include "manifest_parser.h"
 #include "metrics.h"
 #include "missing_deps.h"
+#include "scheduler_trace.h"
 #include "state.h"
 #include "status.h"
 #include "util.h"
@@ -141,6 +143,7 @@ struct NinjaMain : public BuildLogUser {
   int ToolRestat(const Options* options, int argc, char* argv[]);
   int ToolUrtle(const Options* options, int argc, char** argv);
   int ToolRules(const Options* options, int argc, char* argv[]);
+  int ToolTraceReduce(const Options* options, int argc, char* argv[]);
   int ToolWinCodePage(const Options* options, int argc, char* argv[]);
 
   /// Open the build log.
@@ -236,6 +239,12 @@ void Usage(const BuildConfig& config) {
 "  --quiet        don't show progress status, just command output\n"
 "  --status FMT   progress status format using Ninja-style $vars\n"
 "                 (e.g. --status '[$finished/$total] ')\n"
+"  --scheduler-trace FILE\n"
+"                 stream scheduler decisions to FILE\n"
+"  --scheduler-replay FILE\n"
+"                 validate FILE without running build commands\n"
+"  --scheduler-failure EDGE=STATUS\n"
+"                 inject STATUS for the stable EDGE identity\n"
 "\n"
 "  -C DIR   change to DIR before doing anything else\n"
 "  -f FILE  specify input build file [default=build.ninja]\n"
@@ -280,8 +289,15 @@ bool NinjaMain::RebuildManifest(const char* input_file, string* err,
   if (!node)
     return false;
 
-  Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
-                  status, start_time_millis_);
+  // Scheduler diagnostics describe the requested build, not Ninja's internal
+  // manifest regeneration command.  The generation count in the eventual
+  // trace header records that this step occurred.
+  BuildConfig manifest_config = config_;
+  manifest_config.scheduler_trace_path = nullptr;
+  manifest_config.scheduler_replay_path = nullptr;
+  manifest_config.scheduler_failure_edge.clear();
+  Builder builder(&state_, manifest_config, &build_log_, &deps_log_,
+                  &disk_interface_, status, start_time_millis_);
   if (!builder.AddTarget(node, err))
     return false;
 
@@ -1331,6 +1347,21 @@ int NinjaMain::ToolUrtle(const Options* options, int argc, char** argv) {
   return 0;
 }
 
+int NinjaMain::ToolTraceReduce(const Options*, int argc, char** argv) {
+  if (argc != 3) {
+    Error("usage: ninja -t trace-reduce INPUT EDGE_ID OUTPUT");
+    return 1;
+  }
+  string err;
+  if (!SchedulerTrace::Reduce(argv[0], argv[1], argv[2],
+                              config_.scheduler_trace_max_events,
+                              config_.scheduler_trace_max_bytes, &err)) {
+    Error("reducing scheduler trace: %s", err.c_str());
+    return 1;
+  }
+  return 0;
+}
+
 /// Find the function to execute for \a tool_name and return it via \a func.
 /// Returns a Tool, or NULL if Ninja should exit.
 const Tool* ChooseTool(const string& tool_name) {
@@ -1368,6 +1399,8 @@ const Tool* ChooseTool(const string& tool_name) {
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRecompact },
     { "restat",  "restats all outputs in the build log",
       Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolRestat },
+    { "trace-reduce", "derive a replayable scheduler failure slice",
+      Tool::RUN_AFTER_FLAGS, &NinjaMain::ToolTraceReduce },
     { "rules",  "list all rules",
       Tool::RUN_AFTER_LOAD, &NinjaMain::ToolRules },
     { "cleandead",  "clean built files that are no longer produced by the manifest",
@@ -1646,6 +1679,11 @@ ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
 
+  if (config_.scheduler_trace_path && !builder.StartSchedulerTrace(&err)) {
+    status->Error("%s", err.c_str());
+    return ExitFailure;
+  }
+
   if (jobserver_client.get()) {
     builder.SetJobserverClient(std::move(jobserver_client));
   }
@@ -1666,6 +1704,11 @@ ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
   disk_interface_.AllowStatCache(false);
 
   if (builder.AlreadyUpToDate()) {
+    if (config_.scheduler_trace_path &&
+        !builder.WriteNoWorkSchedulerTrace(&err)) {
+      status->Error("%s", err.c_str());
+      return ExitFailure;
+    }
     if (config_.verbosity != BuildConfig::NO_STATUS_UPDATE) {
       status->Info("no work to do.");
     }
@@ -1729,13 +1772,29 @@ int ReadFlags(int* argc, char*** argv,
               Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_STATUS = 3 };
+  enum {
+    OPT_VERSION = 1,
+    OPT_QUIET = 2,
+    OPT_STATUS = 3,
+    OPT_SCHEDULER_TRACE = 4,
+    OPT_SCHEDULER_REPLAY = 5,
+    OPT_SCHEDULER_FAILURE = 6,
+    OPT_SCHEDULER_MAX_EVENTS = 7,
+    OPT_SCHEDULER_MAX_BYTES = 8,
+  };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
     { "status", required_argument, NULL, OPT_STATUS },
+    { "scheduler-trace", required_argument, NULL, OPT_SCHEDULER_TRACE },
+    { "scheduler-replay", required_argument, NULL, OPT_SCHEDULER_REPLAY },
+    { "scheduler-failure", required_argument, NULL, OPT_SCHEDULER_FAILURE },
+    { "scheduler-trace-max-events", required_argument, NULL,
+      OPT_SCHEDULER_MAX_EVENTS },
+    { "scheduler-trace-max-bytes", required_argument, NULL,
+      OPT_SCHEDULER_MAX_BYTES },
     { NULL, 0, NULL, 0 }
   };
 
@@ -1804,6 +1863,46 @@ int ReadFlags(int* argc, char*** argv,
       case OPT_STATUS:
         config->progress_status_format = optarg;
         break;
+      case OPT_SCHEDULER_TRACE:
+        config->scheduler_trace_path = optarg;
+        break;
+      case OPT_SCHEDULER_REPLAY:
+        config->scheduler_replay_path = optarg;
+        break;
+      case OPT_SCHEDULER_FAILURE: {
+        string specification = optarg;
+        size_t separator = specification.rfind('=');
+        if (separator == string::npos || separator == 0 ||
+            separator + 1 == specification.size()) {
+          Fatal("--scheduler-failure expects EDGE=STATUS");
+        }
+        string status_text = specification.substr(separator + 1);
+        char* end = nullptr;
+        long status = strtol(status_text.c_str(), &end, 10);
+        if (!end || *end || status <= 0 || status > 255)
+          Fatal("scheduler failure status must be between 1 and 255");
+        config->scheduler_failure_edge = specification.substr(0, separator);
+        config->scheduler_failure_status = static_cast<int>(status);
+        break;
+      }
+      case OPT_SCHEDULER_MAX_EVENTS:
+      case OPT_SCHEDULER_MAX_BYTES: {
+        char* end = nullptr;
+        errno = 0;
+        unsigned long long value = strtoull(optarg, &end, 10);
+        if (errno || !end || *end || value == 0 || optarg[0] == '-')
+          Fatal("scheduler trace safety limit must be a positive integer");
+        if (opt == OPT_SCHEDULER_MAX_EVENTS) {
+          if (value > numeric_limits<size_t>::max())
+            Fatal("scheduler trace event limit is too large");
+          config->scheduler_trace_max_events = static_cast<size_t>(value);
+        } else {
+          if (value > numeric_limits<uint64_t>::max())
+            Fatal("scheduler trace byte limit is too large");
+          config->scheduler_trace_max_bytes = static_cast<uint64_t>(value);
+        }
+        break;
+      }
       case 'w':
         if (!WarningEnable(optarg, options))
           return 1;
@@ -1820,6 +1919,12 @@ int ReadFlags(int* argc, char*** argv,
         Usage(*config);
         return 1;
     }
+  }
+  if (config->scheduler_trace_path && config->scheduler_replay_path)
+    Fatal("--scheduler-trace and --scheduler-replay are mutually exclusive");
+  if (!config->scheduler_failure_edge.empty() &&
+      !config->scheduler_trace_path) {
+    Fatal("--scheduler-failure requires --scheduler-trace");
   }
   *argv += optind;
   *argc -= optind;
@@ -1866,6 +1971,7 @@ NORETURN void real_main(int argc, char** argv) {
   // Limit number of rebuilds, to prevent infinite loops.
   const int kCycleLimit = 100;
   for (int cycle = 1; cycle <= kCycleLimit; ++cycle) {
+    config.scheduler_manifest_generation = cycle - 1;
     NinjaMain ninja(ninja_command, config);
 
     ManifestParserOptions parser_opts;
@@ -1877,6 +1983,27 @@ NORETURN void real_main(int argc, char** argv) {
     if (!parser.Load(options.input_file, &err)) {
       status->Error("%s", err.c_str());
       exit(1);
+    }
+
+    if (config.scheduler_trace_path || config.scheduler_replay_path) {
+      // Compute compatibility from the manifest before dependency logs or
+      // dyndep files mutate the in-memory graph.
+      config.scheduler_graph_digest =
+          SchedulerTrace::GraphDigest(ninja.state_);
+    }
+
+    if (config.scheduler_replay_path) {
+      if (!SchedulerTrace::Replay(
+              config.scheduler_replay_path, ninja.state_,
+              config.scheduler_graph_digest,
+              config.scheduler_trace_max_events,
+              config.scheduler_trace_max_bytes, &err)) {
+        status->Error("scheduler replay: %s", err.c_str());
+        exit(1);
+      }
+      if (config.verbosity != BuildConfig::NO_STATUS_UPDATE)
+        status->Info("scheduler trace replay succeeded.");
+      exit(0);
     }
 
     if (options.tool && options.tool->when == Tool::RUN_AFTER_LOAD)

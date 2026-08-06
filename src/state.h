@@ -62,7 +62,12 @@ struct Pool {
   void DelayEdge(Edge* edge);
 
   /// Pool will add zero or more edges to the ready_queue
-  void RetrieveReadyEdges(EdgePriorityQueue* ready_queue);
+  void RetrieveReadyEdges(EdgePriorityQueue* ready_queue,
+                          std::vector<Edge*>* released = nullptr);
+
+  bool IsDelayed(const Edge* edge) const {
+    return delayed_.find(const_cast<Edge*>(edge)) != delayed_.end();
+  }
 
   /// Dump the Pool and its edges (useful for debugging).
   void Dump() const;

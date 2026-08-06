@@ -38,7 +38,8 @@ void Pool::DelayEdge(Edge* edge) {
   delayed_.insert(edge);
 }
 
-void Pool::RetrieveReadyEdges(EdgePriorityQueue* ready_queue) {
+void Pool::RetrieveReadyEdges(EdgePriorityQueue* ready_queue,
+                              vector<Edge*>* released) {
   DelayedEdges::iterator it = delayed_.begin();
   while (it != delayed_.end()) {
     Edge* edge = *it;
@@ -46,6 +47,8 @@ void Pool::RetrieveReadyEdges(EdgePriorityQueue* ready_queue) {
       break;
     ready_queue->push(edge);
     EdgeScheduled(*edge);
+    if (released)
+      released->push_back(edge);
     ++it;
   }
   delayed_.erase(delayed_.begin(), it);

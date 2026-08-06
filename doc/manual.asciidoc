@@ -281,6 +281,16 @@ If `MAKEFLAGS` is defined in the environment, if may alter how
 Ninja dispatches parallel build commands. See the GNU Jobserver support
 section for details.
 
+Scheduler diagnostics
+~~~~~~~~~~~~~~~~~~~~~
+
+`--scheduler-trace FILE` records scheduler decisions using stable graph
+identities. `--scheduler-replay FILE` validates such a trace against the
+current manifest without executing build commands. Tracing is disabled by
+default. Failure injection, causal reduction, format details, and the
+compatibility policy are documented in
+https://github.com/ninja-build/ninja/blob/master/doc/scheduler_trace.md[scheduler_trace.md].
+
 Extra tools
 ~~~~~~~~~~~
 
@@ -289,6 +299,9 @@ found useful during Ninja's development.  The current tools are:
 
 [horizontal]
 `query`:: dump the inputs and outputs of a given target.
+
+`trace-reduce`:: derive a replayable causal slice for a failed stable edge
+identity. Use +ninja -t trace-reduce _input_ _edge-id_ _output_+.
 
 `browse`:: browse the dependency graph in a web browser.  Clicking a
 file focuses the view on that file, showing inputs and outputs.  This
