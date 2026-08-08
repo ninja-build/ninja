@@ -132,11 +132,16 @@ class RecomputeOutputsDirtyCache {
   /// Returns true if dirty.
   bool Phony(Node* output, const Node* most_recent_input) const;
 
+  /// execute 'edge_->GetBindingBool("restat")' lazily
+  bool is_restat();
+
   const BuildLog* const buildLog_;
   OptionalExplanations& explanations_;
   const Edge* const edge_;
 
-  const bool isRestat_ = edge_->GetBindingBool("restat");
+  bool isRestat_ = false;
+  bool is_restat_init_ = false;
+
   bool generator_ = false;
   bool generatorValid_ = false;
 
@@ -151,6 +156,15 @@ class RecomputeOutputsDirtyCache {
   std::vector<const Node*> checkOutputs_;
 #endif
 };
+
+bool RecomputeOutputsDirtyCache::is_restat() {
+  if (!is_restat_init_) {
+    is_restat_init_ = true;
+    isRestat_ = edge_->GetBindingBool("restat");
+    return isRestat_;
+  } else
+    return isRestat_;
+}
 
 bool RecomputeOutputsDirtyCache::CachedLogEntry::LookupByOutput(
     const BuildLog* buildLog, const Node* output) {
@@ -258,7 +272,7 @@ bool RecomputeOutputsDirtyCache::RecomputeOutputDirty(
   // output file's actual mtime and simply check the recorded mtime from
   // the log against the most recent input's mtime (see below)
   bool used_restat = false;
-  if (isRestat_ && buildLog_ && entry.LookupByOutput(buildLog_, output)) {
+  if (is_restat() && buildLog_ && entry.LookupByOutput(buildLog_, output)) {
     used_restat = true;
   }
 
