@@ -139,7 +139,12 @@ class RecomputeOutputsDirtyCache {
   const bool isRestat_ = edge_->GetBindingBool("restat");
   bool generator_ = false;
   bool generatorValid_ = false;
-  std::vector<CachedLogEntry> logEntry_;
+
+  // Exactly one of these is used per edge, decided by number of edges' outputs_
+  // - one output: logEntryOneOutput_ (no heap allocation)
+  // - otherwise : logEntryVec_
+  CachedLogEntry logEntryOneOutput_;
+  std::vector<CachedLogEntry> logEntryVec_;
   LazyEdgeCommandHash commandHash_ = LazyEdgeCommandHash(edge_);
 
 #ifndef NDEBUG
@@ -162,17 +167,25 @@ bool RecomputeOutputsDirtyCache::all(const Node* most_recent_input) {
   assert((checkOutputs_.assign(edge_->outputs_.begin(), edge_->outputs_.end()),
           true));
 
-  // Lazy allocation
-  if (!edge_->is_phony())
-    logEntry_.resize(edge_->outputs_.size());
+  auto outputDirty = [&](Node* output, CachedLogEntry& entry) {
+    return edge_->is_phony()
+               ? Phony(output, most_recent_input)
+               : RecomputeOutputDirty<true>(output, most_recent_input, entry);
+  };
 
+  // Fast path for single output, no heap allocation.
+  // Must match the size()==1 branch in depfile(), logEntry[OneOutput|Vec]
+  if (edge_->outputs_.size() == 1) {
+    return outputDirty(edge_->outputs_.front(), logEntryOneOutput_);
+  }
+
+  // Lazy allocation, phony edges never read logEntry_.
+  if (!edge_->is_phony())
+    logEntryVec_.resize(edge_->outputs_.size());
+
+  // multiple outputs
   for (std::size_t i = 0; i != edge_->outputs_.size(); ++i) {
-    const bool outputDirty =
-        edge_->is_phony()
-            ? Phony(edge_->outputs_[i], most_recent_input)
-            : RecomputeOutputDirty<true>(edge_->outputs_[i], most_recent_input,
-                                         logEntry_[i]);
-    if (outputDirty)
+    if (outputDirty(edge_->outputs_[i], logEntryVec_[i]))
       return true;
   }
   return false;
@@ -183,11 +196,18 @@ bool RecomputeOutputsDirtyCache::depfile(const Node* most_recent_input) {
   // with the same edge_->outputs_ as used here.
   assert(std::equal(checkOutputs_.begin(), checkOutputs_.end(),
                     edge_->outputs_.begin(), edge_->outputs_.end()));
+  // Never call this function for phony edges
+  assert(!edge_->is_phony());
+
+  // Must use the same logEntry... (logEntryOneOutput_ vs. logEntry_) as all()
+  if (edge_->outputs_.size() == 1) {
+    return RecomputeOutputDirty<false>(edge_->outputs_.front(),
+                                       most_recent_input, logEntryOneOutput_);
+  }
 
   for (std::size_t i = 0; i != edge_->outputs_.size(); ++i) {
-    assert(!edge_->is_phony());
     if (RecomputeOutputDirty<false>(edge_->outputs_[i], most_recent_input,
-                                    logEntry_[i]))
+                                    logEntryVec_[i]))
       return true;
   }
   return false;
