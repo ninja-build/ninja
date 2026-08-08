@@ -97,8 +97,7 @@ class RecomputeOutputsDirtyCache {
  public:
   RecomputeOutputsDirtyCache(BuildLog* build_log,
                              OptionalExplanations& explanations, Edge* edge)
-      : buildLog_(build_log), explanations_(explanations), edge_(edge),
-        logEntry_(edge->outputs_.size()) {}
+      : buildLog_(build_log), explanations_(explanations), edge_(edge) {}
 
   /// Determines whether at least one output of edge 'edge_' is considered dirty.
   ///
@@ -162,6 +161,10 @@ bool RecomputeOutputsDirtyCache::CachedLogEntry::LookupByOutput(
 bool RecomputeOutputsDirtyCache::all(const Node* most_recent_input) {
   assert((checkOutputs_.assign(edge_->outputs_.begin(), edge_->outputs_.end()),
           true));
+
+  // Lazy allocation
+  if (!edge_->is_phony())
+    logEntry_.resize(edge_->outputs_.size());
 
   for (std::size_t i = 0; i != edge_->outputs_.size(); ++i) {
     const bool outputDirty =
