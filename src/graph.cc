@@ -179,7 +179,7 @@ bool RecomputeOutputsDirtyCache::depfile(const Node* most_recent_input) {
   // Precondition: RecomputeOutputsDirtyCache::all() was previously called
   // with the same edge_->outputs_ as used here.
   assert(std::equal(checkOutputs_.begin(), checkOutputs_.end(),
-                    edge_->outputs_.begin()));
+                    edge_->outputs_.begin(), edge_->outputs_.end()));
 
   for (std::size_t i = 0; i != edge_->outputs_.size(); ++i) {
     assert(!edge_->is_phony());
