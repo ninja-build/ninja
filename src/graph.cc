@@ -52,6 +52,9 @@ struct LazyEdgeCommandHash {
   bool valid_ = false;
 };
 
+#define CACHED_LOG_ENTRY_INIT_SENTINEL \
+  (reinterpret_cast<BuildLog::LogEntry*>(1))
+
 /// Performance‑optimized helper class for recomputing the dirty state of
 /// outputs.
 ///
@@ -78,7 +81,7 @@ class RecomputeOutputsDirtyCache {
     CachedLogEntry(){};
 
     /// check for nullptr
-    bool is_valid() const { return entry_; }
+    bool is_valid() const { return entry_ && entry_ != CACHED_LOG_ENTRY_INIT_SENTINEL; }
     /// When calling this function repeatedly for the same object,
     /// the `buildLog` and `output` pointers must remain unchanged.
     /// Stable pointer identity is required for correct caching behavior.
@@ -86,8 +89,9 @@ class RecomputeOutputsDirtyCache {
     const BuildLog::LogEntry* operator->() const { return entry_; }
 
    private:
-    bool evaluated_ = false;
-    BuildLog::LogEntry* entry_ = nullptr;
+    // CACHED_LOG_ENTRY_INIT_SENTINEL meaning "not yet evaluated". Nullptr means
+    // "evaluated, not found".
+    BuildLog::LogEntry* entry_ = CACHED_LOG_ENTRY_INIT_SENTINEL;
 
 #ifndef NDEBUG
     const Node* checkOutput_ = nullptr;
@@ -168,11 +172,10 @@ bool RecomputeOutputsDirtyCache::is_restat() {
 
 bool RecomputeOutputsDirtyCache::CachedLogEntry::LookupByOutput(
     const BuildLog* buildLog, const Node* output) {
-  if (evaluated_) {
+  if (entry_ != CACHED_LOG_ENTRY_INIT_SENTINEL) {
     assert(output == checkOutput_);
     return entry_;
   }
-  evaluated_ = true;
   assert((checkOutput_ = output, true));
   return (entry_ = buildLog->LookupByOutput(output->path()));
 }
