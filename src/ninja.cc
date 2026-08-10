@@ -1723,10 +1723,128 @@ class DeferGuessParallelism {
   ~DeferGuessParallelism() { Refresh(); }
 };
 
+const option* FindLongOption(const char* arg, const option* long_options,
+                             bool* ambiguous) {
+  const char* name = arg + 2;
+  const char* equals = strchr(name, '=');
+  const size_t name_length = equals ? equals - name : strlen(name);
+  const option* match = NULL;
+  *ambiguous = false;
+
+  for (const option* candidate = long_options; candidate->name; ++candidate) {
+    if (strncmp(name, candidate->name, name_length) != 0)
+      continue;
+    if (strlen(candidate->name) == name_length) {
+      *ambiguous = false;
+      return candidate;
+    }
+    *ambiguous = match != NULL;
+    match = candidate;
+  }
+  return *ambiguous ? NULL : match;
+}
+
+bool SplitToolCommandLine(int argc, char** argv, const char* short_options,
+                          const option* long_options,
+                          std::vector<char*>* ninja_args,
+                          std::vector<char*>* tool_args, char** tool_name) {
+  ninja_args->push_back(argv[0]);
+  *tool_name = NULL;
+  bool parse_ninja_options = true;
+  const bool require_order = getenv("POSIXLY_CORRECT") != NULL;
+
+  for (int index = 1; index < argc; ++index) {
+    char* arg = argv[index];
+    if (strcmp(arg, "--") == 0)
+      return false;
+
+    if (arg[0] != '-' || arg[1] == '\0') {
+      tool_args->push_back(arg);
+      if (require_order)
+        parse_ninja_options = false;
+      continue;
+    }
+
+    // Even in POSIX require-order mode, -t remains the structural boundary
+    // between deferred tool arguments and the tool name.
+    if (!parse_ninja_options) {
+      if (arg[1] != 't') {
+        tool_args->push_back(arg);
+        continue;
+      }
+
+      ninja_args->push_back(arg);
+      if (arg[2]) {
+        *tool_name = arg + 2;
+      } else if (index + 1 < argc) {
+        *tool_name = argv[++index];
+        ninja_args->push_back(*tool_name);
+      }
+      for (++index; index < argc; ++index)
+        tool_args->push_back(argv[index]);
+      return true;
+    }
+
+    if (arg[1] == '-') {
+      bool ambiguous = false;
+      const option* long_option = FindLongOption(arg, long_options, &ambiguous);
+      if (!long_option && !ambiguous) {
+        tool_args->push_back(arg);
+        continue;
+      }
+
+      ninja_args->push_back(arg);
+      if (long_option && !strchr(arg + 2, '=') &&
+          long_option->has_arg == required_argument && index + 1 < argc) {
+        ninja_args->push_back(argv[++index]);
+      }
+      continue;
+    }
+
+    bool recognized = true;
+    bool takes_next_argument = false;
+    for (char* short_option = arg + 1; *short_option; ++short_option) {
+      const char* definition = strchr(short_options, *short_option);
+      if (*short_option == ':' || !definition) {
+        recognized = false;
+        break;
+      }
+
+      if (*short_option == 't') {
+        ninja_args->push_back(arg);
+        if (short_option[1]) {
+          *tool_name = short_option + 1;
+        } else if (index + 1 < argc) {
+          *tool_name = argv[++index];
+          ninja_args->push_back(*tool_name);
+        }
+        for (++index; index < argc; ++index)
+          tool_args->push_back(argv[index]);
+        return true;
+      }
+
+      if (definition[1] == ':') {
+        takes_next_argument = short_option[1] == '\0';
+        break;
+      }
+    }
+
+    if (!recognized) {
+      tool_args->push_back(arg);
+      continue;
+    }
+
+    ninja_args->push_back(arg);
+    if (takes_next_argument && index + 1 < argc)
+      ninja_args->push_back(argv[++index]);
+  }
+  return false;
+}
+
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
-int ReadFlags(int* argc, char*** argv,
-              Options* options, BuildConfig* config) {
+int ReadFlags(int* argc, char*** argv, Options* options, BuildConfig* config,
+              std::vector<char*>* tool_argv) {
   DeferGuessParallelism deferGuessParallelism(config);
 
   enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_STATUS = 3 };
@@ -1738,10 +1856,25 @@ int ReadFlags(int* argc, char*** argv,
     { "status", required_argument, NULL, OPT_STATUS },
     { NULL, 0, NULL, 0 }
   };
+  const char kShortOptions[] = "d:f:j:k:l:nt:vw:C:h";
+
+  std::vector<char*> ninja_args;
+  std::vector<char*> tool_args;
+  char* tool_name = NULL;
+  const bool has_tool =
+      SplitToolCommandLine(*argc, *argv, kShortOptions, kLongOptions,
+                           &ninja_args, &tool_args, &tool_name);
+  int flags_argc = *argc;
+  char** flags_argv = *argv;
+  if (has_tool) {
+    ninja_args.push_back(NULL);
+    flags_argc = static_cast<int>(ninja_args.size()) - 1;
+    flags_argv = ninja_args.data();
+  }
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(flags_argc, flags_argv, kShortOptions, kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1791,6 +1924,7 @@ int ReadFlags(int* argc, char*** argv,
         config->disable_jobserver_client = true;
         break;
       case 't':
+        tool_name = optarg;
         options->tool = ChooseTool(optarg);
         if (!options->tool)
           return 0;
@@ -1821,8 +1955,17 @@ int ReadFlags(int* argc, char*** argv,
         return 1;
     }
   }
-  *argv += optind;
-  *argc -= optind;
+  if (!has_tool) {
+    *argv += optind;
+    *argc -= optind;
+    return -1;
+  }
+
+  tool_argv->push_back(tool_name);
+  tool_argv->insert(tool_argv->end(), tool_args.begin(), tool_args.end());
+  tool_argv->push_back(NULL);
+  *argv = tool_argv->data() + 1;
+  *argc = static_cast<int>(tool_args.size());
 
   return -1;
 }
@@ -1833,11 +1976,12 @@ NORETURN void real_main(int argc, char** argv) {
   BuildConfig config;
   Options options = {};
   options.input_file = "build.ninja";
+  std::vector<char*> tool_argv;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
   const char* ninja_command = argv[0];
 
-  int exit_code = ReadFlags(&argc, &argv, &options, &config);
+  int exit_code = ReadFlags(&argc, &argv, &options, &config, &tool_argv);
   if (exit_code >= 0)
     exit(exit_code);
 

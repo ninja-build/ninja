@@ -20,6 +20,7 @@ import typing as T
 default_env = dict(os.environ)
 default_env.pop('NINJA_STATUS', None)
 default_env.pop('CLICOLOR_FORCE', None)
+default_env.pop('POSIXLY_CORRECT', None)
 default_env['TERM'] = ''
 NINJA_PATH = os.path.abspath('./ninja')
 
@@ -131,6 +132,20 @@ class BuildDir:
             return output.decode('utf-8')
         return remove_non_visible_lines(output)
 
+    def run_args(
+        self,
+        args: T.Sequence[str],
+        env: T.Dict[str, str] = default_env,
+    ) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            [NINJA_PATH, *args],
+            cwd=self.d.name,
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
 def run(
     build_ninja: str,
     flags: T.Optional[str] = None,
@@ -143,6 +158,234 @@ def run(
     """
     with BuildDir(build_ninja) as b:
         return b.run(flags, pipe, raw_output, env, print_err_output)
+
+class CommandLine(unittest.TestCase):
+    COMMANDS_PLAN = '''\
+rule echo
+  command = echo $out
+
+build foo.o: echo
+build bar.o: echo
+build baz.o: echo
+'''
+
+    COMMANDS_WITH_DEPS_PLAN = '''\
+rule echo
+  command = echo $out
+
+build foo.dep: echo
+build foo.o: echo foo.dep
+build bar.dep: echo
+build bar.o: echo bar.dep
+'''
+
+    INPUTS_PLAN = '''\
+rule cat
+  command = cat $in $out
+build out1: cat in1
+build out2: cat in2 out1
+build out3: cat out2 out1 | implicit || order_only
+'''
+
+    def test_tool_arguments_before_selection(self) -> None:
+        with BuildDir(self.COMMANDS_WITH_DEPS_PLAN) as b:
+            result = b.run_args([
+                '-f', 'build.ninja', '--status', 'unused', '--quiet',
+                '-s', 'foo.o',
+                '-t', 'commands', 'bar.o',
+            ])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, 'echo foo.o\necho bar.o\n')
+
+            result = b.run_args(['-t', 'commands', '-s', 'foo.o'])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, 'echo foo.o\n')
+
+        with BuildDir(self.INPUTS_PLAN) as b:
+            result = b.run_args([
+                '--dependency-order', 'out3', '-t', 'inputs',
+            ])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, '''\
+in2
+in1
+out1
+out2
+implicit
+order_only
+''')
+
+        with BuildDir('''\
+rule generator
+  command = echo $out
+  generator = 1
+build generated: generator
+''') as b:
+            generated = os.path.join(b.path, 'generated')
+            with open(generated, 'w'):
+                pass
+            result = b.run_args(['-g', '-t', 'clean'])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(os.path.exists(generated))
+
+    def test_global_options_before_tool_selection(self) -> None:
+        prefixes = (
+            ['-n'],
+            ['-v'],
+            ['-nv'],
+            ['-j1'],
+            ['-j', '1'],
+            ['-k0'],
+            ['-l0'],
+            ['-d', 'explain'],
+            ['-w', 'phonycycle=warn'],
+            ['-fbuild.ninja'],
+            ['-f', 'build.ninja'],
+            ['-C.'],
+            ['-C', '.'],
+            ['--verbose'],
+            ['--quiet'],
+            ['--status=unused'],
+            ['--status', 'unused'],
+        )
+        expected = 'echo foo.o\necho bar.o\n'
+        with BuildDir(self.COMMANDS_WITH_DEPS_PLAN) as b:
+            for prefix in prefixes:
+                args = [*prefix, '-s', 'foo.o', '-t', 'commands', 'bar.o']
+                with self.subTest(prefix=prefix):
+                    result = b.run_args(args)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, expected)
+
+        with BuildDir(self.COMMANDS_PLAN) as b:
+            result = b.run_args([
+                'foo.o', '-v', '--quiet', '-t', 'commands', 'bar.o',
+            ])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, 'echo foo.o\necho bar.o\n')
+
+            result = b.run_args([
+                '--verb', 'foo.o', '-t', 'commands', 'bar.o',
+            ])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, 'echo foo.o\necho bar.o\n')
+
+            version = b.run_args(['--version'])
+            abbreviated_version = b.run_args(['--vers', '-t', 'commands'])
+            self.assertEqual(abbreviated_version.returncode, version.returncode)
+            self.assertEqual(abbreviated_version.stdout, version.stdout)
+            self.assertEqual(abbreviated_version.stderr, version.stderr)
+
+    def test_tool_selection_boundaries(self) -> None:
+        with BuildDir(self.COMMANDS_PLAN) as b:
+            cases = (
+                (['-t', 'commands', 'foo.o'], 'echo foo.o\n'),
+                (['foo.o', '-tcommands', 'bar.o'],
+                 'echo foo.o\necho bar.o\n'),
+                (['foo.o', '-vtcommands', 'bar.o'],
+                 'echo foo.o\necho bar.o\n'),
+                (['foo.o', '-v', '-t', 'commands'], 'echo foo.o\n'),
+                (['-t', 'commands', '--', 'foo.o'], 'echo foo.o\n'),
+            )
+            for args, expected in cases:
+                with self.subTest(args=args):
+                    result = b.run_args(args)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, expected)
+
+            result = b.run_args([
+                '--not-a-command-option', '-t', 'commands',
+            ])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('usage: ninja -t commands', result.stdout)
+
+            result = b.run_args(['-:', '-t', 'commands'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('usage: ninja -t commands', result.stdout)
+
+        with BuildDir('') as b:
+            result = b.run_args(['--', '-t', 'commands'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("unknown target '-t'", result.stderr)
+
+            result = b.run_args(['--not-a-ninja-option'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('usage: ninja [options]', result.stderr)
+
+            result = b.run_args(['--ver', '-t', 'commands'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('ambiguous', result.stderr)
+            self.assertIn('usage: ninja [options]', result.stderr)
+
+            result = b.run_args(['-f', '-t', 'commands'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("loading '-t'", result.stderr)
+
+            result = b.run_args(['-f', '--', '-t', 'commands'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("loading '--'", result.stderr)
+
+            result = b.run_args(['-:'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('usage: ninja [options]', result.stderr)
+
+            result = b.run_args(['-t'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('usage: ninja [options]', result.stderr)
+
+            result = b.run_args(['-t', 'not-a-tool'])
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("unknown tool 'not-a-tool'", result.stderr)
+
+    def test_posixly_correct(self) -> None:
+        env = default_env.copy()
+        env['POSIXLY_CORRECT'] = '1'
+
+        with BuildDir(self.COMMANDS_WITH_DEPS_PLAN) as b:
+            result = b.run_args(
+                ['-s', 'foo.o', '-t', 'commands', 'bar.o'], env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, 'echo foo.o\necho bar.o\n')
+
+            result = b.run_args(
+                ['-v', 'foo.o', '-t', 'commands', 'bar.o'], env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(
+                result.stdout,
+                'echo foo.dep\necho foo.o\necho bar.dep\necho bar.o\n',
+            )
+
+            result = b.run_args(
+                ['foo.o', '-v', '-t', 'commands'], env=env)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("unknown target '-v'", result.stderr)
+
+        with BuildDir(self.INPUTS_PLAN) as b:
+            result = b.run_args(
+                ['--dependency-order', 'out3', '-t', 'inputs'], env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, '''\
+in2
+in1
+out1
+out2
+implicit
+order_only
+''')
+
+        with BuildDir('''\
+rule generator
+  command = echo $out
+  generator = 1
+build generated: generator
+''') as b:
+            generated = os.path.join(b.path, 'generated')
+            with open(generated, 'w'):
+                pass
+            result = b.run_args(['-g', '-t', 'clean'], env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(os.path.exists(generated))
+
 
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
