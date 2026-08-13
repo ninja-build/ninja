@@ -211,6 +211,13 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
       }
       int* deps_data = reinterpret_cast<int*>(buf);
       int out_id = deps_data[0];
+      // A truncated or concurrent write can leave a deps record whose
+      // out_id was never assigned a path. Truncate here; storing it
+      // made Recompact index nodes_ out of bounds.
+      if (out_id < 0 || out_id >= (int)nodes_.size() || !nodes_[out_id]) {
+        read_failed = true;
+        break;
+      }
       TimeStamp mtime;
       mtime = (TimeStamp)(((uint64_t)(unsigned int)deps_data[2] << 32) |
                           (uint64_t)(unsigned int)deps_data[1]);
@@ -315,6 +322,8 @@ Node* DepsLog::GetFirstReverseDepsNode(Node* node) {
     Deps* deps = deps_[id];
     if (!deps)
       continue;
+    if (id >= nodes_.size() || !nodes_[id])
+      continue;
     for (int i = 0; i < deps->node_count; ++i) {
       if (deps->nodes[i] == node)
         return nodes_[id];
@@ -346,6 +355,8 @@ bool DepsLog::Recompact(const string& path, string* err) {
   for (int old_id = 0; old_id < (int)deps_.size(); ++old_id) {
     Deps* deps = deps_[old_id];
     if (!deps) continue;  // If nodes_[old_id] is a leaf, it has no deps.
+    if (old_id >= (int)nodes_.size() || !nodes_[old_id])
+      continue;
 
     if (!IsDepsEntryLiveFor(nodes_[old_id]))
       continue;
