@@ -391,6 +391,7 @@ bool ManifestParser::ParseEdge(string* err) {
     vector<Node*>::iterator new_end =
         remove(edge->inputs_.begin(), edge->inputs_.end(), out);
     if (new_end != edge->inputs_.end()) {
+      out->RemoveOutEdge(edge);
       edge->inputs_.erase(new_end, edge->inputs_.end());
       if (!quiet_) {
         Warning("phony target '%s' names itself as an input; "
