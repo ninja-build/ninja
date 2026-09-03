@@ -36,6 +36,10 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader,
   env_ = &state->bindings_;
 }
 
+std::string ManifestParser::LookupVariable(const std::string& varname) {
+  return env_->LookupVariable(varname);
+}
+
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
   lexer_.Start(filename, input);
