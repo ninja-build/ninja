@@ -995,7 +995,7 @@ std::string GetWorkingDirectory() {
   do {
     ret.resize(ret.size() + 1024);
     errno = 0;
-    success = getcwd(&ret[0], ret.size());
+    success = getcwd(&ret[0], static_cast<int>(ret.size()));
   } while (!success && errno == ERANGE);
   if (!success) {
     Fatal("cannot determine working directory: %s", strerror(errno));
@@ -1008,7 +1008,7 @@ bool Truncate(const string& path, size_t size, string* err) {
 #ifdef _WIN32
   int fh = _sopen(path.c_str(), _O_RDWR | _O_CREAT, _SH_DENYNO,
                   _S_IREAD | _S_IWRITE);
-  int success = _chsize(fh, size);
+  int success = _chsize(fh, static_cast<long>(size));
   _close(fh);
 #else
   int success = truncate(path.c_str(), size);

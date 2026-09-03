@@ -20,7 +20,7 @@
 std::string EncodeJSONString(const std::string& in) {
   static const char* hex_digits = "0123456789abcdef";
   std::string out;
-  out.reserve(in.length() * 1.2);
+  out.reserve(static_cast<size_t>(in.length() * 1.2));
   for (std::string::const_iterator it = in.begin(); it != in.end(); ++it) {
     char c = *it;
     if (c == '\b')
