@@ -15,6 +15,7 @@
 #include "jobserver_pool.h"
 
 #include <assert.h>
+#include <stdlib.h>
 
 #include "util.h"
 
