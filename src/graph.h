@@ -116,6 +116,10 @@ struct Node {
   const std::vector<Edge*>& out_edges() const { return out_edges_; }
   const std::vector<Edge*>& validation_out_edges() const { return validation_out_edges_; }
   void AddOutEdge(Edge* edge) { out_edges_.push_back(edge); }
+  void RemoveOutEdge(Edge* edge) {
+    out_edges_.erase(std::remove(out_edges_.begin(), out_edges_.end(), edge),
+                     out_edges_.end());
+  }
   void AddValidationOutEdge(Edge* edge) { validation_out_edges_.push_back(edge); }
 
   void Dump(const char* prefix="") const;

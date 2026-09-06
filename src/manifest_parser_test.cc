@@ -366,6 +366,32 @@ TEST_F(ParserTest, PhonySelfReferenceIgnored) {
   Node* node = state.LookupNode("a");
   Edge* edge = node->in_edge();
   ASSERT_TRUE(edge->inputs_.empty());
+  ASSERT_TRUE(node->out_edges().empty());
+}
+
+TEST_F(ParserTest, PhonySelfReferenceWithOrderOnlyInputKept) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"build a: phony b c || a\n"
+));
+
+  Node* node = state.LookupNode("a");
+  Edge* edge = node->in_edge();
+  ASSERT_EQ(size_t(3), edge->inputs_.size());
+  EXPECT_EQ("b", edge->inputs_[0]->path());
+  EXPECT_EQ("c", edge->inputs_[1]->path());
+  EXPECT_EQ(node, edge->inputs_[2]);
+  EXPECT_EQ(1, edge->order_only_deps_);
+}
+
+TEST_F(ParserTest, PhonySelfReferenceKeepsOtherOutEdge) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"build a: phony a\n"
+"build b: phony a\n"
+));
+
+  Node* node = state.LookupNode("a");
+  ASSERT_EQ(size_t(1), node->out_edges().size());
+  EXPECT_EQ(state.LookupNode("b")->in_edge(), node->out_edges()[0]);
 }
 
 TEST_F(ParserTest, PhonySelfReferenceKept) {
