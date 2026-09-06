@@ -303,6 +303,15 @@ void CanonicalizePath(char* path, size_t* len, uint64_t* slash_bits) {
     }
   }
 
+  // UNC paths enter as "\\server\share\...". After the loop they look like
+  // "//server/share/...". FindFirstFileExA treats that form as a network path
+  // and fails; restore the Win32 UNC prefix only when those separators were
+  // originally backslashes (#2800). Leave an already-forward "//..." alone.
+  if (*len >= 2 && start[0] == '/' && start[1] == '/' && (bits & 0x3) == 0x3) {
+    start[0] = '\\';
+    start[1] = '\\';
+  }
+
   *slash_bits = bits;
 #else
   *slash_bits = 0;
