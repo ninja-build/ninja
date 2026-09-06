@@ -293,7 +293,19 @@ bool RecomputeOutputsDirtyCache::RecomputeOutputDirty(
 }  // namespace
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
-  mtime_ = disk_interface->Stat(path_, err);
+  // For directory inputs, append a trailing slash so that the underlying
+  // stat() call only succeeds for actual directories. On POSIX, stat()ing a
+  // regular file with a trailing slash returns ENOTDIR, which the disk
+  // interface reports as a missing file (mtime == 0). Directories
+  // successfully stat()ed will report the directory's own mtime, which
+  // changes whenever entries are added to or removed from the directory.
+  if (is_directory_) {
+    string stat_path = path_;
+    stat_path += '/';
+    mtime_ = disk_interface->Stat(stat_path, err);
+  } else {
+    mtime_ = disk_interface->Stat(path_, err);
+  }
   if (mtime_ == -1) {
     return false;
   }

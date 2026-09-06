@@ -110,7 +110,10 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
        string referenced;
        if (dependent)
          referenced = ", needed by '" + dependent->path() + "',";
-       *err = "'" + node->path() + "'" + referenced +
+       string display_path = node->path();
+       if (node->is_directory())
+         display_path += '/';
+       *err = "'" + display_path + "'" + referenced +
               " missing and no known rule to make it";
      }
      return false;

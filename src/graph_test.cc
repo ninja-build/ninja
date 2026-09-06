@@ -1255,3 +1255,67 @@ TEST_F(GraphTest, PhonyOutputWithValidation) {
   ASSERT_EQ(1u, validation_nodes.size());
   EXPECT_EQ("valid", validation_nodes[0]->path());
 }
+
+// A trailing slash in a manifest input marks the input as a directory. The
+// canonical path on the Node has the slash removed, but the node carries the
+// is_directory() flag so that Node::Stat() looks up the directory entry.
+TEST_F(GraphTest, DirectoryInputParsed) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "build out: cat indir/\n"));
+
+  Node* in_node = GetNode("indir");
+  ASSERT_TRUE(in_node != NULL);
+  EXPECT_TRUE(in_node->is_directory());
+  EXPECT_EQ("indir", in_node->path());
+}
+
+// When the directory mtime advances past the output's mtime, the output is
+// considered dirty.
+TEST_F(GraphTest, DirectoryInputMtimeDirty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "build out: cat indir/\n"));
+  // Initial state: directory and output both at tick 1.
+  fs_.Create("indir/", "");
+  fs_.Create("out", "");
+  fs_.Tick();
+  // Directory mtime bumped (e.g. a file was added).
+  fs_.Create("indir/", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+// When the directory mtime is unchanged, the output is up-to-date even though
+// individual files inside the directory may have changed.
+TEST_F(GraphTest, DirectoryInputUpToDate) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "build out: cat indir/\n"));
+  fs_.Create("indir/", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(GetNode("out")->dirty());
+}
+
+// A directory input pointing at a non-existent directory should be treated as
+// missing (and therefore dirty), even if a regular file exists at the same
+// path without a trailing slash.
+TEST_F(GraphTest, DirectoryInputMissingTreatedAsDirty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      "build out: cat indir/\n"));
+  // A regular file with the same name as the directory, but no directory
+  // entry. The virtual filesystem keys entries by exact path, so "indir/"
+  // is not found.
+  fs_.Create("indir", "");
+  fs_.Create("out", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
