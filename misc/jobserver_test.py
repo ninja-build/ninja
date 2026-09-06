@@ -135,12 +135,16 @@ def span_output_file(span_n: int) -> str:
 def generate_build_plan(command_count: int, prefix: str = "") -> str:
     """Generate a Ninja build plan for |command_count| parallel tasks.
 
-    Each task calls the test helper script which waits for 50ms
-    then writes its own start and end time to its output file.
+    Each task calls the test helper script which waits then writes its
+    own start and end time to its output file.
+
+    400ms (not 50ms): GitHub Actions containers often share CPUs with
+    sibling ninja_test processes. Short spans finish before the next
+    task is scheduled, so max_overlaps never reaches task_count (#2827).
     """
     result = prefix + f"""
 rule span
-    command = {sys.executable} -S {_JOBSERVER_TEST_HELPER_SCRIPT} --duration-ms=50 $out
+    command = {sys.executable} -S {_JOBSERVER_TEST_HELPER_SCRIPT} --duration-ms=400 $out
 
 """
 
