@@ -1,13 +1,13 @@
 name: ci-linux-musl
 
-on:
-  workflow_dispatch:
-  pull_request:
-  push:
-    branches: ['**']
-    tags-ignore: ['**']  # Don't trigger on tag pushes
-  release:
-    types: [published]
+# on:
+#   workflow_dispatch:
+#   pull_request:
+#   push:
+#     branches: ['**']
+#     tags-ignore: ['**']  # Don't trigger on tag pushes
+#   release:
+#     types: [published]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
