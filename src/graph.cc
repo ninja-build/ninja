@@ -797,7 +797,7 @@ bool Edge::maybe_phonycycle_diagnostic() const {
   // of the form "build a: phony ... a ...".   Restrict our
   // "phonycycle" diagnostic option to the form it used.
   return is_phony() && outputs_.size() == 1 && implicit_outs_ == 0 &&
-      implicit_deps_ == 0;
+      implicit_deps_ == 0 && order_only_deps_ == 0;
 }
 
 // static
