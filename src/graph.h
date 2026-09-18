@@ -20,6 +20,7 @@
 #include <queue>
 #include <set>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "dyndep.h"
@@ -233,6 +234,7 @@ struct Edge {
   VisitMark mark_ = VisitNone;
   bool outputs_ready_ = false;
   bool deps_loaded_ = false;
+  bool deps_added_to_graph = false;
   bool deps_missing_ = false;
   bool generated_by_dep_loader_ = false;
   TimeStamp command_start_time_ = 0;
@@ -422,6 +424,30 @@ struct DependencyScan {
   /// Returns true if edge is dirty.
   bool RecomputeOutputsDirty(const Edge* edge, const Node* most_recent_input,
                              std::string* err);
+
+  struct SkipEdge {};
+  struct CleanEdge {};
+  struct DirtyEdge {
+    EdgeInputsRange edge_inputs_range_;
+    static DirtyEdge Empty(Edge* edge) {
+      return DirtyEdge{ EdgeInputsRange::Empty(edge) };
+    }
+  };
+
+  /// Recalculate the dirty state of \a edge, under restat conditions and if all
+  /// edges's inputs are clean.
+  /// This may include loading a depfile. Only non-stale depfiles are loaded.
+  /// Returns std::nullopt on error, \a err contains more information and is
+  /// never empty.
+  /// Otherwise it can return one of three states:
+  ///   - Edge is dirty. This may include newly loaded dependencies
+  ///     (from the depfile), which are returned as well.
+  ///   - Edge is clean, and will be removed from the build plan.
+  ///   - Edge is skipped and not changed, as its depfile could not be loaded.
+  std::optional<std::variant<DirtyEdge, CleanEdge, SkipEdge>>
+  RecomputeDirtyRestatInput(Edge* edge, const Node* most_recent_input,
+                            std::vector<Node*>* validation_nodes,
+                            std::string* err);
 
   BuildLog* build_log() const {
     return build_log_;

@@ -266,7 +266,11 @@ bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err) {
   return true;
 }
 
-bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
+bool Plan::CleanNode(DependencyScan* scan, Node* node,
+                     std::vector<Node*>* validation_nodes, string* err) {
+  using SkipEdge = DependencyScan::SkipEdge;
+  using CleanEdge = DependencyScan::CleanEdge;
+  using DirtyEdge = DependencyScan::DirtyEdge;
   node->set_dirty(false);
 
   for (Edge* out_edge : node->out_edges()) {
@@ -292,15 +296,24 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
           most_recent_input = *i;
       }
 
-      bool dirty =
-          scan->RecomputeOutputsDirty(out_edge, most_recent_input, err);
+      auto dirty_state = scan->RecomputeDirtyRestatInput(
+          out_edge, most_recent_input, validation_nodes, err);
+      if (!dirty_state)
+        return false;
 
-      // Now, this edge is dirty if any of the outputs are dirty.
-      // If the edge isn't dirty, clean the outputs and mark the edge as not
-      // wanted.
-      if (!dirty) {
+      // Failed to load dependency info
+      // Don't attempt to clean an edge if it failed to load deps.
+      if (std::holds_alternative<SkipEdge>(*dirty_state))
+        continue;
+
+      // Now, this edge is dirty if any of the outputs or newly added inputs are
+      // dirty. If the edge isn't dirty, clean the outputs and mark the edge as
+      // not wanted.
+      if (std::holds_alternative<CleanEdge>(*dirty_state)) {
+        // remove 'out_edge' and its input edges from build plan
+
         for (auto o : out_edge->outputs_) {
-          if (!CleanNode(scan, o, err))
+          if (!CleanNode(scan, o, validation_nodes, err))
             return false;
         }
 
@@ -311,10 +324,48 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
           if (builder_)
             builder_->status_->EdgeRemovedFromPlan(out_edge);
         }
+      } else {
+        assert(std::holds_alternative<DirtyEdge>(*dirty_state));
+
+        // 'out_edge' is not removed, add newly added input edges of 'out_egde'
+        // to build-plan.
+        const EdgeInputsRange& new_deps =
+            std::get<DirtyEdge>(*dirty_state).edge_inputs_range_;
+        if (!AddInputTargets(new_deps, err))
+          return false;
       }
     }
   }
   return true;
+}
+
+bool Plan::AddInputTargets(const EdgeInputsRange& new_inputs,
+                           std::string* err) {
+  std::set<Edge*> inputs_walk;
+  for (size_t i = 0; i < new_inputs.size(); ++i) {
+    if (!AddSubTarget(new_inputs[i], nullptr, err, &inputs_walk) &&
+        !err->empty())
+      return false;
+  }
+
+  // See if any encountered edges are now ready.
+  for (auto dep : inputs_walk) {
+    map<Edge*, Want>::iterator want_e = want_.find(dep);
+    if (want_e == want_.end())
+      continue;
+    if (!EdgeMaybeReady(want_e, err))
+      return false;
+  }
+  return true;
+}
+
+bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
+  std::vector<Node*> validation_nodes;
+  if (!CleanNode(scan, node, &validation_nodes, err))
+    return false;
+
+  // Add any validation nodes as new top level targets.
+  return AddValidationNodes(validation_nodes, err);
 }
 
 bool Plan::AddValidationNodes(std::vector<Node*>& validation_nodes,

@@ -490,8 +490,13 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   if (!edge_deps_loaded) {
     // only try to load the deps log if no rebuild is necessary
     // if an rebuild is necessary the deps log is outdated for this target
+    //
+    // For restat edges, the edge may finish without changing its outputs.
+    // In that case, Plan::CleanNode() rechecks whether the deps log is stale
+    // and may load it if the edge is clean.
     if (!dirty) {
       // Load discovered deps.
+      edge->deps_added_to_graph = true;
       std::optional<EdgeInputsRange> new_deps = dep_loader_.LoadDeps(edge, err);
       if (!new_deps) {
         if (!err->empty())
@@ -597,6 +602,59 @@ bool DependencyScan::LoadDyndeps(Node* node, string* err) const {
 bool DependencyScan::LoadDyndeps(Node* node, DyndepFile* ddf,
                                  string* err) const {
   return dyndep_loader_.LoadDyndeps(node, ddf, err);
+}
+
+std::optional<std::variant<DependencyScan::DirtyEdge, DependencyScan::CleanEdge,
+                           DependencyScan::SkipEdge>>
+DependencyScan::RecomputeDirtyRestatInput(Edge* edge,
+                                          const Node* most_recent_input,
+                                          std::vector<Node*>* validation_nodes,
+                                          std::string* err) {
+  RecomputeOutputsDirtyCache recomputeOutputsDirty(build_log(), explanations_,
+                                                   edge);
+  bool dirty = recomputeOutputsDirty.all(most_recent_input);
+  if (dirty)
+    return DirtyEdge::Empty(edge);
+
+  if (edge->deps_added_to_graph)
+    return DependencyScan::CleanEdge();
+
+  // This depfile was not loaded because the edge was initially dirty
+  // based on its manifest inputs. Since the restat inputs completed
+  // without changing their outputs, the edge may now be clean, so the
+  // depfile can be loaded safely.
+  edge->deps_added_to_graph = true;
+  std::optional<EdgeInputsRange> new_deps = dep_loader_.LoadDeps(edge, err);
+  if (!new_deps) {
+    if (!err->empty())
+      return std::nullopt;
+
+    // Failed to load dependency info
+    // Don't attempt to clean an edge if it failed to load deps.
+    edge->deps_missing_ = true;
+    return SkipEdge();
+  }
+
+  // Update the dirty state with dependencies loaded from the depfile.
+  std::vector<Node*> stack;
+  const Node* most_recent_input_previous = most_recent_input;
+  if (!RecomputeEdgesInputsDirty(edge->outputs_[0], *new_deps,
+                                 most_recent_input, dirty, &stack,
+                                 validation_nodes, err))
+    return std::nullopt;
+
+  if (dirty)
+    return DirtyEdge{ *new_deps };
+
+  // only applicable if most_recent_input did change, any other criteria
+  // has already been checked.
+  if (most_recent_input_previous != most_recent_input)
+    dirty = recomputeOutputsDirty.depfile(most_recent_input);
+
+  if (!dirty)
+    return CleanEdge();
+
+  return DirtyEdge{ *new_deps };
 }
 
 bool Edge::AllInputsReady() const {

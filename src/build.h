@@ -132,10 +132,21 @@ struct Plan {
   /// currently-full pool.
   void ScheduleWork(std::map<Edge*, Want>::iterator want_e);
 
+  /// Clean the given node during the build.
+  /// Return false on error.
+  bool CleanNode(DependencyScan* scan, Node* node,
+                 std::vector<Node*>* validation_nodes, std::string* err);
+
   /// Add any validation nodes as new top level targets.
   /// Returns false on error
   bool AddValidationNodes(std::vector<Node*>& validation_nodes,
                           std::string* err);
+
+  /// Add newly added input dependency to build plan. The inputs had recently
+  /// been added to the dependency graph.
+  ///
+  /// Returns false on error.
+  bool AddInputTargets(const EdgeInputsRange& new_inputs, std::string* err);
 
   /// Keep track of which edges we want to build in this plan.  If this map does
   /// not contain an entry for an edge, we do not want to build the entry or its
