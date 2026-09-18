@@ -96,7 +96,8 @@ class RecomputeOutputsDirtyCache {
 
  public:
   RecomputeOutputsDirtyCache(BuildLog* build_log,
-                             OptionalExplanations& explanations, Edge* edge)
+                             OptionalExplanations& explanations,
+                             const Edge* edge)
       : buildLog_(build_log), explanations_(explanations), edge_(edge),
         logEntry_(edge->outputs_.size()) {}
 
@@ -356,7 +357,7 @@ bool DependencyScan::RecomputeDirty(Node* initial_node,
 /// @param dirty        Set to true if any regular input is dirty or missing.
 /// @return true on success, false if an error occurred during recomputation.
 bool DependencyScan::RecomputeEdgesInputsDirty(
-    const Node* node, EdgeInputsRange input_range, Node*& most_recent_input,
+    const Node* node, EdgeInputsRange input_range, const Node*& most_recent_input,
     bool& dirty, std::vector<Node*>* stack,
     std::vector<Node*>* validation_nodes, std::string* err) {
   Edge* edge = input_range.GetEdge();
@@ -473,7 +474,7 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     }
   }
 
-  Node* most_recent_input = nullptr;
+  const Node* most_recent_input = nullptr;
   if (!RecomputeEdgesInputsDirty(node, EdgeInputsRange(node->in_edge()),
                                  most_recent_input, dirty, stack,
                                  validation_nodes, err))
@@ -582,11 +583,11 @@ bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
   return false;
 }
 
-bool DependencyScan::RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
-                                           bool* outputs_dirty, string* err) {
-  *outputs_dirty = RecomputeOutputsDirtyCache(build_log(), explanations_, edge)
-                       .all(most_recent_input);
-  return true;
+bool DependencyScan::RecomputeOutputsDirty(const Edge* edge,
+                                           const Node* most_recent_input,
+                                           string* err) {
+  return RecomputeOutputsDirtyCache(build_log(), explanations_, edge)
+      .all(most_recent_input);
 }
 
 bool DependencyScan::LoadDyndeps(Node* node, string* err) const {

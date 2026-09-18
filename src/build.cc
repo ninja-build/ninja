@@ -98,7 +98,7 @@ bool Plan::AddTarget(const Node* target, string* err) {
 }
 
 bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
-                        set<Edge*>* dyndep_walk) {
+                        set<Edge*>* added_edges) {
   Edge* edge = node->in_edge();
   if (!edge) {
      // Leaf node, this can be either a regular input from the manifest
@@ -125,7 +125,7 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
     want_.insert(make_pair(edge, kWantNothing));
   Want& want = want_ins.first->second;
 
-  if (dyndep_walk && want == kWantToFinish)
+  if (added_edges && want == kWantToFinish)
     return false;  // Don't need to do anything with already-scheduled edge.
 
   // If we do need to build edge and we haven't already marked it as wanted,
@@ -135,15 +135,15 @@ bool Plan::AddSubTarget(const Node* node, const Node* dependent, string* err,
     EdgeWanted(edge);
   }
 
-  if (dyndep_walk)
-    dyndep_walk->insert(edge);
+  if (added_edges)
+    added_edges->insert(edge);
 
   if (!want_ins.second)
     return true;  // We've already processed the inputs.
 
   for (vector<Node*>::iterator i = edge->inputs_.begin();
        i != edge->inputs_.end(); ++i) {
-    if (!AddSubTarget(*i, node, err, dyndep_walk) && !err->empty())
+    if (!AddSubTarget(*i, node, err, added_edges) && !err->empty())
       return false;
   }
 
@@ -269,52 +269,60 @@ bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err) {
 bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
   node->set_dirty(false);
 
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
-       oe != node->out_edges().end(); ++oe) {
+  for (Edge* out_edge : node->out_edges()) {
     // Don't process edges that we don't actually want.
-    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+    map<Edge*, Want>::iterator want_e = want_.find(out_edge);
     if (want_e == want_.end() || want_e->second == kWantNothing)
       continue;
 
     // Don't attempt to clean an edge if it failed to load deps.
-    if ((*oe)->deps_missing_)
+    if (out_edge->deps_missing_)
       continue;
 
     // If all non-order-only inputs for this edge are now clean,
     // we might have changed the dirty state of the outputs.
     vector<Node*>::iterator
-        begin = (*oe)->inputs_.begin(),
-        end = (*oe)->inputs_.end() - (*oe)->order_only_deps_;
-    if (find_if(begin, end, mem_fn(&Node::dirty)) == end) {
+        begin = out_edge->inputs_.begin(),
+        end = out_edge->inputs_.end() - out_edge->order_only_deps_;
+    if (none_of(begin, end, [](const Node* i) { return i->dirty(); })) {
       // Recompute most_recent_input.
-      Node* most_recent_input = NULL;
+      const Node* most_recent_input = nullptr;
       for (vector<Node*>::iterator i = begin; i != end; ++i) {
         if (!most_recent_input || (*i)->mtime() > most_recent_input->mtime())
           most_recent_input = *i;
       }
 
+      bool dirty =
+          scan->RecomputeOutputsDirty(out_edge, most_recent_input, err);
+
       // Now, this edge is dirty if any of the outputs are dirty.
       // If the edge isn't dirty, clean the outputs and mark the edge as not
       // wanted.
-      bool outputs_dirty = false;
-      if (!scan->RecomputeOutputsDirty(*oe, most_recent_input,
-                                       &outputs_dirty, err)) {
-        return false;
-      }
-      if (!outputs_dirty) {
-        for (vector<Node*>::iterator o = (*oe)->outputs_.begin();
-             o != (*oe)->outputs_.end(); ++o) {
-          if (!CleanNode(scan, *o, err))
+      if (!dirty) {
+        for (auto o : out_edge->outputs_) {
+          if (!CleanNode(scan, o, err))
             return false;
         }
 
         want_e->second = kWantNothing;
         --wanted_edges_;
-        if (!(*oe)->is_phony()) {
+        if (!out_edge->is_phony()) {
           --command_edges_;
           if (builder_)
-            builder_->status_->EdgeRemovedFromPlan(*oe);
+            builder_->status_->EdgeRemovedFromPlan(out_edge);
         }
+      }
+    }
+  }
+  return true;
+}
+
+bool Plan::AddValidationNodes(std::vector<Node*>& validation_nodes,
+                              std::string* err) {
+  for (auto v : validation_nodes) {
+    if (Edge* in_edge = v->in_edge()) {
+      if (!in_edge->outputs_ready() && !AddTarget(v, err)) {
+        return false;
       }
     }
   }
@@ -419,15 +427,9 @@ bool Plan::RefreshDyndepDependents(DependencyScan* scan,
 
     // Add any validation nodes found during RecomputeDirty as new top level
     // targets.
-    for (std::vector<Node*>::iterator v = validation_nodes.begin();
-         v != validation_nodes.end(); ++v) {
-      if (Edge* in_edge = (*v)->in_edge()) {
-        if (!in_edge->outputs_ready() &&
-            !AddTarget(*v, err)) {
-          return false;
-        }
-      }
-    }
+    if (!AddValidationNodes(validation_nodes, err))
+      return false;
+
     if (!n->dirty())
       continue;
 

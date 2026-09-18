@@ -385,6 +385,7 @@ struct EdgeInputsRange {
   size_t size() const { return size_; }
 
   Edge* GetEdge() const { return edge_; }
+  bool empty() const { return beg_ == end_; }
 
  private:
   /// The edge whose input range is being viewed.
@@ -418,9 +419,9 @@ struct DependencyScan {
   bool RecomputeDirty(Node* node, std::vector<Node*>* validation_nodes, std::string* err);
 
   /// Recompute whether any output of the edge is dirty, if so sets |*dirty|.
-  /// Returns false on failure.
-  bool RecomputeOutputsDirty(Edge* edge, Node* most_recent_input,
-                             bool* dirty, std::string* err);
+  /// Returns true if edge is dirty.
+  bool RecomputeOutputsDirty(const Edge* edge, const Node* most_recent_input,
+                             std::string* err);
 
   BuildLog* build_log() const {
     return build_log_;
@@ -445,7 +446,7 @@ struct DependencyScan {
                           std::vector<Node*>* validation_nodes,
                           std::string* err);
   bool RecomputeEdgesInputsDirty(const Node* node, EdgeInputsRange input_range,
-                                 Node*& most_recent_input, bool& dirty,
+                                 const Node*& most_recent_input, bool& dirty,
                                  std::vector<Node*>* stack,
                                  std::vector<Node*>* validation_nodes,
                                  std::string* err);
