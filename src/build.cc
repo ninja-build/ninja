@@ -382,6 +382,10 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node,
   const size_t size = node->out_edges().size();
   for (size_t out_index = 0; out_index < size; ++out_index) {
     Edge* out_edge = node->out_edges()[out_index];
+
+    // explanations for nodes' outputs are obsolete
+    scan->RemoveExplanations(out_edge);
+
     // Don't process edges that we don't actually want.
     map<Edge*, Want>::iterator want_e = want_.find(out_edge);
     if (want_e == want_.end() || want_e->second == kWantNothing)

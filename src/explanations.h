@@ -37,6 +37,8 @@ struct Explanations {
   /// Same as Record(), but uses a va_list to pass formatting arguments.
   void RecordArgs(const void* item, const char* fmt, va_list args);
 
+  void Remove(const void* item);
+
   /// Print recorded explanations for an edge.
   void ExplainEdge(const Edge* edge);
 
@@ -60,6 +62,8 @@ struct OptionalExplanations {
   void Record(const void* item, const char* fmt, ...);
 
   void RecordArgs(const void* item, const char* fmt, va_list args);
+
+  void Remove(const void* item);
 
   void LookupAndAppend(const void* item, std::vector<std::string>* out);
 

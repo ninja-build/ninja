@@ -549,6 +549,11 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
   return true;
 }
 
+void DependencyScan::RemoveExplanations(Edge* edge) {
+  for (Node* i : edge->outputs_)
+    explanations_.Remove(i);
+}
+
 bool DependencyScan::VerifyDAG(Node* node, vector<Node*>* stack, string* err) {
   Edge* edge = node->in_edge();
   assert(edge != NULL);

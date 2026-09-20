@@ -468,6 +468,8 @@ struct DependencyScan {
   bool LoadDyndeps(Node* node, std::string* err) const;
   bool LoadDyndeps(Node* node, DyndepFile* ddf, std::string* err) const;
 
+  void RemoveExplanations(Edge* edge);
+
  private:
   bool RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
                           std::vector<Node*>* validation_nodes,
@@ -477,6 +479,7 @@ struct DependencyScan {
                                  std::vector<Node*>* stack,
                                  std::vector<Node*>* validation_nodes,
                                  std::string* err);
+
   bool VerifyDAG(Node* node, std::vector<Node*>* stack, std::string* err);
 
   void RecordExplanation(const Node* node, const char* fmt, ...);
