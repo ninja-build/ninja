@@ -280,6 +280,10 @@ struct Builder {
   /// (doesn't need to be an enum value of ExitStatus)
   ExitStatus GetExitCode() const { return exit_code_; }
 
+  /// only for unittests
+  const Explanations* getExplanations() const;
+  void ClearExplanations();
+
 private:
   /// Parses the CommandCompleted result to extract dependencies.
   /// May modify result.output to extract dependency messages out of it

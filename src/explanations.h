@@ -49,6 +49,13 @@ struct Explanations {
   /// Print explanation for loading a dyndep file.
   void ExplainDyndepLoad(const Node* node);
 
+  const std::unordered_map<const void*, std::vector<std::string>>& getMap() const {
+    return map_;
+  }
+
+  // testing only
+  void clear() { map_.clear(); }
+
  private:
   std::unordered_map<const void*, std::vector<std::string>> map_;
   Status* status_;
