@@ -609,6 +609,7 @@ std::optional<std::variant<DependencyScan::DirtyEdge, DependencyScan::CleanEdge,
 DependencyScan::RecomputeDirtyRestatInput(Edge* edge,
                                           const Node* most_recent_input,
                                           std::vector<Node*>* validation_nodes,
+                                          std::vector<EdgeInputsRange>* cycle_detection_nodes,
                                           std::string* err) {
   RecomputeOutputsDirtyCache recomputeOutputsDirty(build_log(), explanations_,
                                                    edge);
@@ -635,13 +636,26 @@ DependencyScan::RecomputeDirtyRestatInput(Edge* edge,
     return SkipEdge();
   }
 
-  // Update the dirty state with dependencies loaded from the depfile.
+// Updates the dirty state of the edge and its transitive dependencies
+// using the dependencies loaded from the depfile.
+//
+// Internally calls RecomputeNodeDirty for each dependency, cycle detection
+// is performed as part of that call.
+//
+// Limitation: cycle detection only works reliably if all edges of the
+// cycle are among the newly added (depfile) dependencies. Cycles that
+// include edges already present in the previously parsed build graph
+// are NOT detected here.
   std::vector<Node*> stack;
   const Node* most_recent_input_previous = most_recent_input;
   if (!RecomputeEdgesInputsDirty(edge->outputs_[0], *new_deps,
                                  most_recent_input, dirty, &stack,
                                  validation_nodes, err))
     return std::nullopt;
+
+  // collect all newly loaded depfile
+  if (!new_deps->empty())
+    cycle_detection_nodes->push_back(*new_deps);
 
   if (dirty)
     return DirtyEdge{ *new_deps };

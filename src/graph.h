@@ -447,6 +447,7 @@ struct DependencyScan {
   std::optional<std::variant<DirtyEdge, CleanEdge, SkipEdge>>
   RecomputeDirtyRestatInput(Edge* edge, const Node* most_recent_input,
                             std::vector<Node*>* validation_nodes,
+                            std::vector<EdgeInputsRange>* cycle_detection_nodes,
                             std::string* err);
 
   BuildLog* build_log() const {

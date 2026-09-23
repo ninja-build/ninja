@@ -3162,6 +3162,127 @@ build C: cp B
   EXPECT_EQ(R"cmd(cp B C )cmd", command_runner_.commands_ran_[2].substr(0, 7));
 }
 
+// Similar to RestatPseudoStaleDepfileGenerated, detecting a cycle with nodes as part of
+// manifest and part of the late loaded dyndeps.
+TEST_F(BuildTest, RestatPseudoStaleDepfileCycle) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+                                      R"ninja(
+#rule cat
+#  command = cp $in $out
+
+rule true
+  command = cmp -s $in $out || cp $in $out
+  restat = 1
+
+rule cp
+  command = cp $src $out && printf '%s: %s\n' "$out" "$dep_input" > $depfile
+  depfile = $out.d
+
+build B: true A
+build X: cat in_X
+
+build C: cp B
+  src = B
+  dep_input = X
+
+# Inducing a cycle only present with depfile load
+rule cp_inputs_to_outputs
+  command = cp $in $out
+
+build in_X: cp_inputs_to_outputs C
+
+)ninja"));
+
+  fs_.Create("B", "");
+  fs_.Create("C", "");
+  fs_.Create("C.d", "C: X\n");
+
+  fs_.Tick();
+  fs_.Create("A", "");
+
+  fs_.Tick();
+  fs_.Create("in_X", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("C", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
+  EXPECT_EQ(
+      "dependency cycle: 'in_X' -> 'C' -> 'X' -> 'in_X'\n"
+      "Detected after loading depfile for output 'C' due to restat input 'B'",
+      err);
+}
+
+inline const char* manifest_stale_depfile = R"ninja(
+#rule cat
+#  command = cp $in $out
+
+rule true
+  command = cmp -s $in $out || cp $in $out
+  restat = 1
+
+rule cp
+  command = cp $src $out && printf '%s: %s\n' "$out" "$dep_input" > $depfile
+  depfile = $out.d
+
+build B: true A
+
+# cycle with three nodes, only visible with depfile load ('ninja C').
+build X: cat in_X
+build in_X_Cycle: cat in_X
+build in_X: cat X
+
+build C: cp B
+  src = B
+  dep_input = X
+
+)ninja";
+
+// Similar to RestatPseudoStaleDepfileCycle, detecting a cycle with nodes as
+// part of late loaded dyndeps only. Check cycle Detection in class
+// DependencyScan.
+TEST_F(BuildTest, RestatPseudoStaleDepfileCycle2) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, manifest_stale_depfile));
+
+  fs_.Create("B", "");
+  fs_.Create("C", "");
+  fs_.Create("C.d", "C: X\n");
+
+  fs_.Tick();
+  fs_.Create("A", "");
+
+  fs_.Tick();
+  fs_.Create("in_X", "");
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("C", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitFailure);
+  EXPECT_EQ("dependency cycle: X -> in_X -> X", err);
+}
+
+// Similar to RestatPseudoStaleDepfileCycle2, detecting a cycle with nodes as
+// part of late loaded dyndeps only. Check cycle Detection of of class
+// DependencyScan.
+TEST_F(BuildTest, RestatPseudoStaleDepfileCycle2Hidden) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, manifest_stale_depfile));
+
+  fs_.Create("C", "");
+  fs_.Create("C.d", "C: X\n");
+  fs_.Create("A", "");
+  fs_.Create("in_X", "");
+
+  // B is older than C, depfile is not loaded and no cycle is detected.
+  fs_.Tick();
+  fs_.Create("B", "");
+  std::string err;
+
+  EXPECT_TRUE(builder_.AddTarget("C", &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(builder_.Build(&err), ExitSuccess);
+  EXPECT_EQ("", err);
+}
+
 /// Check that a restat rule generating a header cancels compilations correctly.
 TEST_F(BuildTest, RestatDepfileDependency) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,

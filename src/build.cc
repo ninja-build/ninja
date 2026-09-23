@@ -21,6 +21,7 @@
 #include <stdlib.h>
 
 #include <functional>
+#include <sstream>
 #include <unordered_set>
 
 #if defined(__SVR4) && defined(__sun)
@@ -75,6 +76,108 @@ BuildResult DryRunCommandRunner::WaitForCommand() {
   finished_.pop();
 
   return BuildResult::CommandCompleted{ edge, status };
+}
+
+// RAII guard manages stack inserts and erases safely.
+class StackGuard {
+ public:
+  StackGuard(std::unordered_set<const Node*>& stack, const Node* node)
+      : stack_(stack), node_(node), inserted_(stack.insert(node).second) {}
+
+  ~StackGuard() {
+    if (inserted_)
+      stack_.erase(node_);
+  }
+
+  explicit operator bool() const { return inserted_; }
+
+ private:
+  std::unordered_set<const Node*>& stack_;
+  const Node* node_;
+  bool inserted_;
+};
+
+// Tracks nodes currently on the recursion path.
+class NodeStack {
+ public:
+  StackGuard insert(const Node* node) { return StackGuard(stack_, node); }
+
+ private:
+  std::unordered_set<const Node*> stack_;
+};
+
+class CycleDetection {
+ public:
+  static std::vector<const Node*> GetCycle(
+      const std::vector<EdgeInputsRange>& input);
+
+ private:
+  explicit CycleDetection(const std::vector<EdgeInputsRange>& input)
+      : start_(input) {}
+
+  bool start();
+  bool iterate(const Node* node);
+
+  const std::vector<EdgeInputsRange>& start_;
+  NodeStack stack_;
+  // Nodes fully explored without finding a cycle, avoids re-checking a
+  // path that had no cycle detection.
+  std::unordered_set<const Node*> visited_;
+  std::vector<const Node*> cycle_;
+  const Node* cycle_start_ = nullptr;
+  bool cycle_complete_ = false;
+};
+
+std::vector<const Node*> CycleDetection::GetCycle(
+    const std::vector<EdgeInputsRange>& input) {
+  CycleDetection cycle(input);
+  cycle.start();
+  return cycle.cycle_;
+}
+
+bool CycleDetection::start() {
+  for (const auto& range : start_)
+    for (size_t i = 0; i < range.size(); ++i) {
+      if (!iterate(range[i]))
+        return false;
+    }
+  return true;
+}
+
+bool CycleDetection::iterate(const Node* node) {
+  StackGuard guard = stack_.insert(node);
+  if (!guard) {
+    // Node is already on the current path, cycle detected.
+    cycle_start_ = node;
+    cycle_.push_back(node);
+    return false;
+  }
+
+  // Skip nodes already fully explored via another path. If no cycle was
+  // found before, none will be found now.
+  if (!visited_.insert(node).second)
+    return true;
+
+  const Edge* edge = node->in_edge();
+  if (!edge)
+    return true;  // Source node, nothing to recurse into.
+
+  for (const Node* next : edge->inputs_) {
+    if (!iterate(next)) {
+      if (cycle_complete_)
+        return false;
+
+      if (node == cycle_start_) {
+        // Reached the node that closes the cycle.
+        cycle_complete_ = true;
+        return false;
+      }
+
+      cycle_.push_back(node);
+      return false;
+    }
+  }
+  return true;
 }
 
 }  // namespace
@@ -267,7 +370,9 @@ bool Plan::EdgeMaybeReady(map<Edge*, Want>::iterator want_e, string* err) {
 }
 
 bool Plan::CleanNode(DependencyScan* scan, Node* node,
-                     std::vector<Node*>* validation_nodes, string* err) {
+                     std::vector<Node*>* validation_nodes,
+                     std::vector<EdgeInputsRange>* cycle_detection_nodes,
+                     string* err) {
   using SkipEdge = DependencyScan::SkipEdge;
   using CleanEdge = DependencyScan::CleanEdge;
   using DirtyEdge = DependencyScan::DirtyEdge;
@@ -300,7 +405,8 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node,
       }
 
       auto dirty_state = scan->RecomputeDirtyRestatInput(
-          out_edge, most_recent_input, validation_nodes, err);
+          out_edge, most_recent_input, validation_nodes, cycle_detection_nodes,
+          err);
       if (!dirty_state)
         return false;
 
@@ -316,7 +422,7 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node,
         // remove 'out_edge' and its input edges from build plan
 
         for (auto o : out_edge->outputs_) {
-          if (!CleanNode(scan, o, validation_nodes, err))
+          if (!CleanNode(scan, o, validation_nodes, cycle_detection_nodes, err))
             return false;
         }
 
@@ -364,8 +470,39 @@ bool Plan::AddInputTargets(const EdgeInputsRange& new_inputs,
 
 bool Plan::CleanNode(DependencyScan* scan, Node* node, string* err) {
   std::vector<Node*> validation_nodes;
-  if (!CleanNode(scan, node, &validation_nodes, err))
+  std::vector<EdgeInputsRange> cycle_detection_nodes;
+  if (!CleanNode(scan, node, &validation_nodes, &cycle_detection_nodes, err))
     return false;
+
+  // check for a cycle.
+  const std::vector<const Node*> cycle =
+      CycleDetection::GetCycle(cycle_detection_nodes);
+  if (!cycle.empty()) {
+    // cycle detected
+
+    std::string_view output_node = [node]() -> std::string_view {
+      if (!node->out_edges().empty() &&
+          !node->out_edges().front()->outputs_.empty())
+        return node->out_edges().front()->outputs_.front()->path();
+      else
+        return "internal error";  // should never apply
+    }();
+
+    // prepare error message
+    std::stringstream err_stream(*err);
+    err_stream << "dependency cycle: ";
+
+    for (auto it = cycle.rbegin(); it != cycle.rend(); ++it) {
+      err_stream << "'" << (*it)->path() << "' -> ";
+    }
+    err_stream << "'" << cycle.back()->path() << "'"
+               << "\nDetected after loading depfile for output '" << output_node
+               << "' due to restat input '" << node->path() << "'";
+
+    *err = err_stream.str();
+
+    return false;
+  }
 
   // Add any validation nodes as new top level targets.
   return AddValidationNodes(validation_nodes, err);

@@ -135,7 +135,9 @@ struct Plan {
   /// Clean the given node during the build.
   /// Return false on error.
   bool CleanNode(DependencyScan* scan, Node* node,
-                 std::vector<Node*>* validation_nodes, std::string* err);
+                 std::vector<Node*>* validation_nodes,
+                 std::vector<EdgeInputsRange>* cycle_detection_nodes,
+                 std::string* err);
 
   /// Add any validation nodes as new top level targets.
   /// Returns false on error
