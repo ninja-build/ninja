@@ -94,9 +94,9 @@ bool DyndepLoader::UpdateEdge(Edge* edge, Dyndeps const* dyndeps,
 
   // Add this edge as incoming to each new output.
   for (Node* node : dyndeps->implicit_outputs_) {
-    if (node->in_edge()) {
+    if (Edge* other = node->in_edge()) {
       // This node already has an edge producing it.
-      *err = "multiple rules generate " + node->path();
+      *err = Edge::FormatDuplicateRuleError(edge, other, node->path());
       return false;
     }
     node->set_in_edge(edge);

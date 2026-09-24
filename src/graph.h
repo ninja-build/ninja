@@ -207,6 +207,9 @@ struct Edge {
   std::string GetUnescapedRspfile() const;
 
   void Dump(const char* prefix="") const;
+  static std::string FormatDuplicateRuleError(const Edge* current,
+                                              const Edge* previous,
+                                              StringPiece path);
 
   // critical_path_weight is the priority during build scheduling. The
   // "critical path" between this edge's inputs and any target node is
