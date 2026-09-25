@@ -22,6 +22,7 @@
 
 #include <functional>
 #include <unordered_set>
+#include "safe_range.h"
 
 #if defined(__SVR4) && defined(__sun)
 #include <sys/termios.h>
@@ -229,9 +230,8 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
 
   // Check off any nodes we were waiting for with this edge.
   // Index access used: iterators may be invalidated (dyndep load).
-  const auto size = edge->outputs_.size();
-  for (std::size_t i = 0; i < size; ++i) {
-    if (!NodeFinished(edge->outputs_[i], err))
+  for (Node* o : Index(edge->outputs_)) {
+    if (!NodeFinished(o, err))
       return false;
   }
   return true;
@@ -240,9 +240,8 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
 bool Plan::NodeFinished(Node* node, string* err) {
   // See if we we want any edges from this node.
   // Index access used: iterators may be invalidated (dyndep load).
-  const auto size = node->out_edges().size();
-  for (std::size_t i = 0; i < size; ++i) {
-    map<Edge*, Want>::iterator want_e = want_.find(node->out_edges()[i]);
+  for (Edge* oe : Index(node->out_edges())) {
+    map<Edge*, Want>::iterator want_e = want_.find(oe);
     if (want_e == want_.end())
       continue;
 
