@@ -227,6 +227,7 @@ try:
     httpd.serve_forever()
 except KeyboardInterrupt:
     print()
-    pass  # Swallow console spam.
+finally:
+    httpd.server_close()
 
 
