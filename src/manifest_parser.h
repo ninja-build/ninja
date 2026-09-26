@@ -72,11 +72,16 @@ struct ManifestParser : public Parser {
   ManifestParserOptions options_;
   bool quiet_;
 
-  // ins_/out_/validations_ are reused across invocations to ParseEdge(),
-  // to save on the otherwise constant memory reallocation.
-  // subparser_ is reused solely to get better reuse out ins_/outs_/validation_.
+  /// Reads paths until an empty one, appending them to paths_ starting at
+  /// index |*n|, and advances |*n|. Returns the number of paths read, or -1
+  /// on error.
+  int ReadPaths(size_t* n, std::string* err);
+
+  // The outputs, inputs and validations of the edge being parsed, in that
+  // order. Reused across invocations of ParseEdge().
+  // subparser_ is also reused to get better reuse out of paths_.
   std::unique_ptr<ManifestParser> subparser_;
-  std::vector<EvalString> ins_, outs_, validations_;
+  std::vector<EvalString> paths_;
 };
 
 #endif  // NINJA_MANIFEST_PARSER_H_
