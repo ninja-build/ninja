@@ -273,7 +273,10 @@ bool Plan::CleanNode(DependencyScan* scan, Node* node,
   using DirtyEdge = DependencyScan::DirtyEdge;
   node->set_dirty(false);
 
-  for (Edge* out_edge : node->out_edges()) {
+  // Index access used: iterators may be invalidated.
+  const size_t size = node->out_edges().size();
+  for (size_t out_index = 0; out_index < size; ++out_index) {
+    Edge* out_edge = node->out_edges()[out_index];
     // Don't process edges that we don't actually want.
     map<Edge*, Want>::iterator want_e = want_.find(out_edge);
     if (want_e == want_.end() || want_e->second == kWantNothing)
@@ -1013,18 +1016,20 @@ bool Builder::FinishCommand(BuildResult::CommandCompleted& result,
     // we should fall back to recording the outputs' current mtime in the
     // log.
     if (record_mtime == 0 || restat || generator) {
-      for (vector<Node*>::iterator o = edge->outputs_.begin();
-           o != edge->outputs_.end(); ++o) {
-        TimeStamp new_mtime = disk_interface_->Stat((*o)->path(), err);
+      // Index access used: iterators may be invalidated.
+      const size_t size = edge->outputs_.size();
+      for (size_t i = 0; i < size; ++i) {
+        TimeStamp new_mtime =
+            disk_interface_->Stat(edge->outputs_[i]->path(), err);
         if (new_mtime == -1)
           return false;
         if (new_mtime > record_mtime)
           record_mtime = new_mtime;
-        if ((*o)->mtime() == new_mtime && restat) {
+        if (edge->outputs_[i]->mtime() == new_mtime && restat) {
           // The rule command did not change the output.  Propagate the clean
           // state through the build graph.
           // Note that this also applies to nonexistent outputs (mtime == 0).
-          if (!plan_.CleanNode(&scan_, *o, err))
+          if (!plan_.CleanNode(&scan_, edge->outputs_[i], err))
             return false;
           node_cleaned = true;
         }
