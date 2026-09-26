@@ -3687,7 +3687,10 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewOutputWithMultipleRules1) {
   EXPECT_EQ("", err);
 
   EXPECT_EQ(builder_.Build(&err), ExitFailure);
-  EXPECT_EQ("multiple rules generate out-twice.imp", err);
+  EXPECT_EQ(
+      "multiple rules generate out-twice.imp (defined by rule 'touch', "
+      "previously defined by rule 'touch' with input 'in')",
+      err);
 }
 
 TEST_F(BuildTest, DyndepBuildDiscoverNewOutputWithMultipleRules2) {
@@ -3727,7 +3730,10 @@ TEST_F(BuildTest, DyndepBuildDiscoverNewOutputWithMultipleRules2) {
   EXPECT_EQ("", err);
 
   EXPECT_EQ(builder_.Build(&err), ExitFailure);
-  EXPECT_EQ("multiple rules generate out-twice.imp", err);
+  EXPECT_EQ(
+      "multiple rules generate out-twice.imp (defined by rule 'touch', "
+      "previously defined by rule 'touch' with input 'dd1')",
+      err);
 }
 
 TEST_F(BuildTest, DyndepBuildDiscoverNewInput) {
