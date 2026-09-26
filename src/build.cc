@@ -228,9 +228,10 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
   }
 
   // Check off any nodes we were waiting for with this edge.
-  for (vector<Node*>::iterator o = edge->outputs_.begin();
-       o != edge->outputs_.end(); ++o) {
-    if (!NodeFinished(*o, err))
+  // Index access used: iterators may be invalidated (dyndep load).
+  const auto size = edge->outputs_.size();
+  for (std::size_t i = 0; i < size; ++i) {
+    if (!NodeFinished(edge->outputs_[i], err))
       return false;
   }
   return true;
@@ -238,9 +239,10 @@ bool Plan::EdgeFinished(Edge* edge, EdgeResult result, string* err) {
 
 bool Plan::NodeFinished(Node* node, string* err) {
   // See if we we want any edges from this node.
-  for (vector<Edge*>::const_iterator oe = node->out_edges().begin();
-       oe != node->out_edges().end(); ++oe) {
-    map<Edge*, Want>::iterator want_e = want_.find(*oe);
+  // Index access used: iterators may be invalidated (dyndep load).
+  const auto size = node->out_edges().size();
+  for (std::size_t i = 0; i < size; ++i) {
+    map<Edge*, Want>::iterator want_e = want_.find(node->out_edges()[i]);
     if (want_e == want_.end())
       continue;
 
