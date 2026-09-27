@@ -71,7 +71,7 @@ size_t RealCommandRunner::CanRunMore() const {
   }
 
   if (config_.max_load_average > 0.0f) {
-    int load_capacity = config_.max_load_average - GetLoadAverage();
+    int load_capacity = static_cast<int>(config_.max_load_average - GetLoadAverage());
     if (load_capacity < capacity)
       capacity = load_capacity;
   }

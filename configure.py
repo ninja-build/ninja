@@ -336,7 +336,7 @@ if platform.is_msvc():
               '/Zi',  # Create pdb with debug info.
               '/W4',  # Highest warning level.
               '/WX',  # Warnings as errors.
-              '/wd4530', '/wd4100', '/wd4706', '/wd4244',
+              '/wd4530', '/wd4100', '/wd4706',
               '/wd4512', '/wd4800', '/wd4702',
               # Disable warnings about constant conditional expressions.
               '/wd4127',
@@ -346,9 +346,6 @@ if platform.is_msvc():
               '/wd4091',
               '/GR-',  # Disable RTTI.
               '/Zc:__cplusplus',
-              # Disable size_t -> int truncation warning.
-              # We never have strings or arrays larger than 2**31.
-              '/wd4267',
               '/DNOMINMAX', '/D_CRT_SECURE_NO_WARNINGS',
               '/D_HAS_EXCEPTIONS=0',
               '/DNINJA_PYTHON="%s"' % options.with_python]
@@ -553,6 +550,7 @@ for name in ['build',
              'graph',
              'graphviz',
              'jobserver',
+             'jobserver_pool',
              'json',
              'line_printer',
              'manifest_parser',
@@ -657,6 +655,7 @@ if gtest_src_dir:
         'explanations_test',
         'graph_test',
         'jobserver_test',
+        'jobserver_pool_test',
         'json_test',
         'lexer_test',
         'manifest_parser_test',

@@ -797,7 +797,7 @@ bool Edge::maybe_phonycycle_diagnostic() const {
   // of the form "build a: phony ... a ...".   Restrict our
   // "phonycycle" diagnostic option to the form it used.
   return is_phony() && outputs_.size() == 1 && implicit_outs_ == 0 &&
-      implicit_deps_ == 0;
+      implicit_deps_ == 0 && order_only_deps_ == 0;
 }
 
 // static
@@ -1008,7 +1008,7 @@ std::optional<EdgeInputsRange> ImplicitDepLoader::LoadDepsFromLog(Edge* edge,
   const size_t node_count = deps->node_count;
   const auto implicit_dep = edge->inputs_.end() - edge->order_only_deps_;
 
-  edge->implicit_deps_ += node_count;
+  edge->implicit_deps_ += static_cast<int>(node_count);
   for (size_t i = 0; i < node_count; ++i) {
     nodes[i]->AddOutEdge(edge);
   }

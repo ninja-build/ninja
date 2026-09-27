@@ -47,6 +47,7 @@
 #include "graph.h"
 #include "graphviz.h"
 #include "jobserver.h"
+#include "jobserver_pool.h"
 #include "json.h"
 #include "manifest_parser.h"
 #include "metrics.h"
@@ -83,6 +84,54 @@ struct Options {
 
   /// Whether phony cycles should warn or print an error.
   bool phony_cycle_should_err;
+};
+
+/// Helper class used to manage the state of jobserver pool and client
+/// handling in a given NinjaMain instance.
+struct JobserverState {
+  JobserverState(const BuildConfig& config, Status* status) {
+    SetupPool(config, status);
+    SetupClient(config, status);
+  }
+
+  /// Return pointer to client instance or nullptr.
+  Jobserver::Client* client() { return client_.get(); }
+
+  /// Transfer ownership of client to caller.
+  std::unique_ptr<Jobserver::Client> TakeClient() { return std::move(client_); }
+
+ private:
+  /// Detect whether an external and supported jobserver pool is available.
+  /// On success, return true. On failure, return false, and |*error|
+  /// will be empty in the default case (no pool available), or will
+  /// contain a small error message if there is an unsupported pool
+  /// available (in which case Ninja should not try to setup its own).
+  bool HasExternalJobserverPool(std::string* error);
+
+  /// Return true if Ninja should setup its own jobserver pool.
+  /// On exit |*reason| may contain a small description justifying
+  /// the result. This is intended to be printed as a debugging
+  /// message in verbose mode.
+  bool ShouldSetupPool(const BuildConfig& config, std::string* reason);
+
+  /// Return true if Ninja should setup its jobserver client.
+  /// On exit, |*reason| may contain a small description justifying
+  /// the result. This is intended to be printed as a debugging
+  /// message in verbose mode.
+  bool ShouldSetupClient(const BuildConfig& config, std::string* reason);
+
+  /// Try to setup jobserver pool. If something fails, an error will
+  /// be printed to |status| explaining the reason.
+  void SetupPool(const BuildConfig& config, Status* status);
+
+  /// Try to setup jobserver client. If something fails, an error will
+  /// be printed to |status| explaining the reason.
+  void SetupClient(const BuildConfig& config, Status* status);
+
+  std::string makeflags_;
+  Jobserver::Config jobserver_config_;
+  std::unique_ptr<JobserverPool> pool_;
+  std::unique_ptr<Jobserver::Client> client_;
 };
 
 /// The Ninja main() loads up a series of data structures; various tools need
@@ -164,10 +213,6 @@ struct NinjaMain : public BuildLogUser {
   /// and record that in the edge itself. It will be used for ETA prediction.
   void ParsePreviousElapsedTimes();
 
-  /// Create a jobserver client if needed. Return a nullptr value if
-  /// not. Prints info and warnings to \a status.
-  std::unique_ptr<Jobserver::Client> SetupJobserverClient(Status* status);
-
   /// Build the targets listed on the command line.
   /// @return an exit code.
   ExitStatus RunBuild(int argc, char** argv, Status* status);
@@ -248,7 +293,12 @@ void Usage(const BuildConfig& config) {
 "  -d MODE  enable debugging (use '-d list' to list modes)\n"
 "  -t TOOL  run a subtool (use '-t list' to list subtools)\n"
 "    terminates toplevel options; further flags are passed to the tool\n"
-"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n",
+"  -w FLAG  adjust warnings (use '-w list' to list warnings)\n"
+"\n"
+"  --jobserver-pool\n"
+"           setup a GNU jobserver pool of job slots matching the\n"
+"           current parallel job configuration. Ignored if -j1 is\n"
+"           specified explicitly, or if an existing pool is detected\n\n",
           kNinjaVersion, config.parallelism);
 }
 
@@ -1585,47 +1635,115 @@ bool NinjaMain::EnsureBuildDirExists() {
   return true;
 }
 
-std::unique_ptr<Jobserver::Client> NinjaMain::SetupJobserverClient(
-    Status* status) {
-  // Empty result by default.
-  std::unique_ptr<Jobserver::Client> result;
-
-  // If dry-run or explicit job count, don't even look at MAKEFLAGS
-  if (config_.disable_jobserver_client)
-    return result;
-
+bool JobserverState::HasExternalJobserverPool(std::string* error) {
   const char* makeflags = getenv("MAKEFLAGS");
+  makeflags_ = makeflags ? makeflags : "";
   if (!makeflags) {
-    // MAKEFLAGS is not defined.
-    return result;
+    return false;
   }
 
-  std::string err;
-  Jobserver::Config jobserver_config;
-  if (!Jobserver::ParseNativeMakeFlagsValue(makeflags, &jobserver_config,
-                                            &err)) {
+  if (!Jobserver::ParseNativeMakeFlagsValue(makeflags, &jobserver_config_,
+                                            error)) {
     // MAKEFLAGS is defined but could not be parsed correctly.
-    if (config_.verbosity > BuildConfig::QUIET)
-      status->Warning("Ignoring jobserver: %s [%s]", err.c_str(), makeflags);
-    return result;
+    return false;
+  }
+  if (!jobserver_config_.HasMode()) {
+    // This happens when the feature is disabled explicitly in MAKEFLAGS
+    // e.g. using "--jobserver-fds=-1,-1"
+    *error = "external pool is disabled";
+    return false;
+  }
+  return true;
+}
+
+bool JobserverState::ShouldSetupPool(const BuildConfig& config,
+                                     std::string* reason) {
+  if (config.parallelism == 1) {
+    *reason = "no parallelism (-j1) specified";
+    return false;
+  }
+  if (config.dry_run) {
+    *reason = "dry-run mode";
+    return false;
+  }
+  if (HasExternalJobserverPool(reason)) {
+    *reason = "external pool detected";
+    return false;
+  }
+  if (!reason->empty())
+    return false;
+
+  if (!config.jobserver_pool) {
+    return false;
+  }
+  *reason = "";
+  return true;
+}
+
+bool JobserverState::ShouldSetupClient(const BuildConfig& config,
+                                       std::string* reason) {
+  if (config.dry_run) {
+    *reason = "Dry-run mode";
+    return false;
+  }
+  if (config.explicit_parallelism && !config.jobserver_pool) {
+    *reason = "Explicit parallelism specified";
+    return false;
+  }
+  return HasExternalJobserverPool(reason);
+}
+
+void JobserverState::SetupPool(const BuildConfig& config, Status* status) {
+  std::string err;
+  if (!ShouldSetupPool(config, &err)) {
+    if (!err.empty() && config.verbosity >= BuildConfig::VERBOSE)
+      status->Info("not creating a jobserver pool: %s", err.c_str());
+    return;
   }
 
-  if (!jobserver_config.HasMode()) {
-    // MAKEFLAGS is defined, but does not describe a jobserver mode.
-    return result;
+  if (config.verbosity >= BuildConfig::VERBOSE)
+    status->Info("Creating jobserver pool for %d parallel jobs",
+                 config.parallelism);
+
+  err.clear();
+  pool_ = JobserverPool::Create(static_cast<size_t>(config.parallelism), &err);
+  if (!pool_.get()) {
+    if (config.verbosity > BuildConfig::QUIET)
+      status->Warning("Jobserver pool creation failed: %s", err.c_str());
+    return;
   }
 
-  if (config_.verbosity > BuildConfig::NO_STATUS_UPDATE) {
-    status->Info("Jobserver mode detected: %s", makeflags);
+  std::string makeflags = pool_->GetEnvMakeFlagsValue();
+
+  //  Set or override the MAKEFLAGS environment variable in
+  // the current process. This ensures it is passed to sub-commands
+  // as well.
+#ifdef _WIN32
+  std::string env = "MAKEFLAGS=" + makeflags;
+  _putenv(env.c_str());
+#else   // !_WIN32
+  setenv("MAKEFLAGS", makeflags.c_str(), 1);
+#endif  // !_WIN32
+}
+
+void JobserverState::SetupClient(const BuildConfig& config, Status* status) {
+  std::string err;
+  if (!ShouldSetupClient(config, &err)) {
+    if (!err.empty() && config.verbosity >= BuildConfig::VERBOSE)
+      status->Warning("ignoring jobserver: %s [%s]", err.c_str(),
+                      makeflags_.c_str());
+    return;
+  }
+  if (config.verbosity > BuildConfig::NO_STATUS_UPDATE) {
+    status->Info("Jobserver mode detected: %s", makeflags_.c_str());
   }
 
-  result = Jobserver::Client::Create(jobserver_config, &err);
-  if (!result.get()) {
+  client_ = Jobserver::Client::Create(jobserver_config_, &err);
+  if (!client_.get()) {
     // Jobserver client initialization failed !?
-    if (config_.verbosity > BuildConfig::QUIET)
+    if (config.verbosity > BuildConfig::QUIET)
       status->Error("Could not initialize jobserver: %s", err.c_str());
   }
-  return result;
 }
 
 ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
@@ -1638,16 +1756,14 @@ ExitStatus NinjaMain::RunBuild(int argc, char** argv, Status* status) {
 
   disk_interface_.AllowStatCache(g_experimental_statcache);
 
-  // Detect jobserver context and inject Jobserver::Client into the builder
-  // if needed.
-  std::unique_ptr<Jobserver::Client> jobserver_client =
-      SetupJobserverClient(status);
+  // Setup jobserver pool and client if needed.
+  JobserverState jobserver_state(config_, status);
 
   Builder builder(&state_, config_, &build_log_, &deps_log_, &disk_interface_,
                   status, start_time_millis_);
 
-  if (jobserver_client.get()) {
-    builder.SetJobserverClient(std::move(jobserver_client));
+  if (jobserver_state.client()) {
+    builder.SetJobserverClient(jobserver_state.TakeClient());
   }
 
   for (size_t i = 0; i < targets.size(); ++i) {
@@ -1723,158 +1839,32 @@ class DeferGuessParallelism {
   ~DeferGuessParallelism() { Refresh(); }
 };
 
-const option* FindLongOption(const char* arg, const option* long_options,
-                             bool* ambiguous) {
-  const char* name = arg + 2;
-  const char* equals = strchr(name, '=');
-  const size_t name_length = equals ? equals - name : strlen(name);
-  const option* match = NULL;
-  *ambiguous = false;
-
-  for (const option* candidate = long_options; candidate->name; ++candidate) {
-    if (strncmp(name, candidate->name, name_length) != 0)
-      continue;
-    if (strlen(candidate->name) == name_length) {
-      *ambiguous = false;
-      return candidate;
-    }
-    *ambiguous = match != NULL;
-    match = candidate;
-  }
-  return *ambiguous ? NULL : match;
-}
-
-bool SplitToolCommandLine(int argc, char** argv, const char* short_options,
-                          const option* long_options,
-                          std::vector<char*>* ninja_args,
-                          std::vector<char*>* tool_args, char** tool_name) {
-  ninja_args->push_back(argv[0]);
-  *tool_name = NULL;
-  bool parse_ninja_options = true;
-  const bool require_order = getenv("POSIXLY_CORRECT") != NULL;
-
-  for (int index = 1; index < argc; ++index) {
-    char* arg = argv[index];
-    if (strcmp(arg, "--") == 0)
-      return false;
-
-    if (arg[0] != '-' || arg[1] == '\0') {
-      tool_args->push_back(arg);
-      if (require_order)
-        parse_ninja_options = false;
-      continue;
-    }
-
-    // Even in POSIX require-order mode, -t remains the structural boundary
-    // between deferred tool arguments and the tool name.
-    if (!parse_ninja_options) {
-      if (arg[1] != 't') {
-        tool_args->push_back(arg);
-        continue;
-      }
-
-      ninja_args->push_back(arg);
-      if (arg[2]) {
-        *tool_name = arg + 2;
-      } else if (index + 1 < argc) {
-        *tool_name = argv[++index];
-        ninja_args->push_back(*tool_name);
-      }
-      for (++index; index < argc; ++index)
-        tool_args->push_back(argv[index]);
-      return true;
-    }
-
-    if (arg[1] == '-') {
-      bool ambiguous = false;
-      const option* long_option = FindLongOption(arg, long_options, &ambiguous);
-      if (!long_option && !ambiguous) {
-        tool_args->push_back(arg);
-        continue;
-      }
-
-      ninja_args->push_back(arg);
-      if (long_option && !strchr(arg + 2, '=') &&
-          long_option->has_arg == required_argument && index + 1 < argc) {
-        ninja_args->push_back(argv[++index]);
-      }
-      continue;
-    }
-
-    bool recognized = true;
-    bool takes_next_argument = false;
-    for (char* short_option = arg + 1; *short_option; ++short_option) {
-      const char* definition = strchr(short_options, *short_option);
-      if (*short_option == ':' || !definition) {
-        recognized = false;
-        break;
-      }
-
-      if (*short_option == 't') {
-        ninja_args->push_back(arg);
-        if (short_option[1]) {
-          *tool_name = short_option + 1;
-        } else if (index + 1 < argc) {
-          *tool_name = argv[++index];
-          ninja_args->push_back(*tool_name);
-        }
-        for (++index; index < argc; ++index)
-          tool_args->push_back(argv[index]);
-        return true;
-      }
-
-      if (definition[1] == ':') {
-        takes_next_argument = short_option[1] == '\0';
-        break;
-      }
-    }
-
-    if (!recognized) {
-      tool_args->push_back(arg);
-      continue;
-    }
-
-    ninja_args->push_back(arg);
-    if (takes_next_argument && index + 1 < argc)
-      ninja_args->push_back(argv[++index]);
-  }
-  return false;
-}
-
 /// Parse argv for command-line options.
 /// Returns an exit code, or -1 if Ninja should continue.
-int ReadFlags(int* argc, char*** argv, Options* options, BuildConfig* config,
-              std::vector<char*>* tool_argv) {
+int ReadFlags(int* argc, char*** argv,
+              Options* options, BuildConfig* config) {
   DeferGuessParallelism deferGuessParallelism(config);
 
-  enum { OPT_VERSION = 1, OPT_QUIET = 2, OPT_STATUS = 3 };
+  enum {
+    OPT_VERSION = 1,
+    OPT_QUIET = 2,
+    OPT_STATUS = 3,
+    OPT_JOBSERVER_POOL = 4,
+  };
   const option kLongOptions[] = {
     { "help", no_argument, NULL, 'h' },
     { "version", no_argument, NULL, OPT_VERSION },
     { "verbose", no_argument, NULL, 'v' },
     { "quiet", no_argument, NULL, OPT_QUIET },
     { "status", required_argument, NULL, OPT_STATUS },
+    { "jobserver-pool", no_argument, NULL, OPT_JOBSERVER_POOL },
     { NULL, 0, NULL, 0 }
   };
   const char kShortOptions[] = "d:f:j:k:l:nt:vw:C:h";
 
-  std::vector<char*> ninja_args;
-  std::vector<char*> tool_args;
-  char* tool_name = NULL;
-  const bool has_tool =
-      SplitToolCommandLine(*argc, *argv, kShortOptions, kLongOptions,
-                           &ninja_args, &tool_args, &tool_name);
-  int flags_argc = *argc;
-  char** flags_argv = *argv;
-  if (has_tool) {
-    ninja_args.push_back(NULL);
-    flags_argc = static_cast<int>(ninja_args.size()) - 1;
-    flags_argv = ninja_args.data();
-  }
-
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(flags_argc, flags_argv, kShortOptions, kLongOptions,
+         (opt = getopt_long(*argc, *argv, kShortOptions, kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1894,7 +1884,7 @@ int ReadFlags(int* argc, char*** argv, Options* options, BuildConfig* config,
         // is close enough to infinite for most sane builds.
         config->parallelism =
             static_cast<int>((value > 0 && value < INT_MAX) ? value : INT_MAX);
-        config->disable_jobserver_client = true;
+        config->explicit_parallelism = true;
         deferGuessParallelism.needGuess = false;
         break;
       }
@@ -1921,10 +1911,8 @@ int ReadFlags(int* argc, char*** argv, Options* options, BuildConfig* config,
       }
       case 'n':
         config->dry_run = true;
-        config->disable_jobserver_client = true;
         break;
       case 't':
-        tool_name = optarg;
         options->tool = ChooseTool(optarg);
         if (!options->tool)
           return 0;
@@ -1948,6 +1936,9 @@ int ReadFlags(int* argc, char*** argv, Options* options, BuildConfig* config,
       case OPT_VERSION:
         printf("%s\n", kNinjaVersion);
         return 0;
+      case OPT_JOBSERVER_POOL:
+        config->jobserver_pool = true;
+        break;
       case 'h':
       default:
         deferGuessParallelism.Refresh();
@@ -1955,18 +1946,13 @@ int ReadFlags(int* argc, char*** argv, Options* options, BuildConfig* config,
         return 1;
     }
   }
-  if (!has_tool) {
-    *argv += optind;
-    *argc -= optind;
-    return -1;
+  if (options->tool) {
+    // Some getopt implementations defer permuting targets until the next call.
+    // Limit that call to the consumed prefix so tool arguments stay untouched.
+    getopt_long(optind, *argv, kShortOptions, kLongOptions, NULL);
   }
-
-  tool_argv->push_back(tool_name);
-  tool_argv->insert(tool_argv->end(), tool_args.begin(), tool_args.end());
-  tool_argv->push_back(NULL);
-  *argv = tool_argv->data() + 1;
-  *argc = static_cast<int>(tool_args.size());
-
+  *argv += optind;
+  *argc -= optind;
   return -1;
 }
 
@@ -1976,12 +1962,11 @@ NORETURN void real_main(int argc, char** argv) {
   BuildConfig config;
   Options options = {};
   options.input_file = "build.ninja";
-  std::vector<char*> tool_argv;
 
   setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
   const char* ninja_command = argv[0];
 
-  int exit_code = ReadFlags(&argc, &argv, &options, &config, &tool_argv);
+  int exit_code = ReadFlags(&argc, &argv, &options, &config);
   if (exit_code >= 0)
     exit(exit_code);
 
@@ -2046,6 +2031,16 @@ NORETURN void real_main(int argc, char** argv) {
     } else if (!err.empty()) {
       status->Error("rebuilding '%s': %s", options.input_file, err.c_str());
       exit(1);
+    }
+
+    // If enable_jobserver_pool is set to 1, enable jobserver pool mode as
+    // if --jobserver-pool had been passed on the command line. Note that
+    // any other value is ignored (thus 0 does not disable the flag if it is
+    // used).
+    std::string enable_jobserver_pool =
+        parser.LookupVariable("enable_jobserver_pool");
+    if (enable_jobserver_pool == "1") {
+      const_cast<BuildConfig&>(ninja.config_).jobserver_pool = true;
     }
 
     ninja.ParsePreviousElapsedTimes();

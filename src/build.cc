@@ -469,9 +469,12 @@ void Plan::UnmarkDependents(const Node* node, set<Node*>* dependents) {
 namespace {
 
 // Heuristic for edge priority weighting.
-// Phony edges are free (0 cost), all other edges are weighted equally.
+// Phony edges are free (0 cost), all other edges are weighted by their
+// previous elapsed time if available
 int64_t EdgeWeightHeuristic(Edge *edge) {
-  return edge->is_phony() ? 0 : 1;
+  int64_t prev_elapsed_time_millis =
+    edge->prev_elapsed_time_millis < 0 ? 1 : edge->prev_elapsed_time_millis;
+  return edge->is_phony() ? 0 : prev_elapsed_time_millis;
 }
 
 }  // namespace
@@ -865,7 +868,12 @@ bool Builder::StartEdge(Edge* edge, string* err) {
     if (!disk_interface_->MakeDirs((*o)->path()))
       return false;
     if (build_start == -1) {
-      disk_interface_->WriteFile(lock_file_path_, "", false);
+      disk_interface_->WriteFile(lock_file_path_, ".", false);
+      // It's necessary to write at least one byte to the lock file because
+      // otherwise, certain filesystems (e.g. tmpfs on macOS; AWS FSx mounted
+      // via NFS) expose a bug in their fopen() implementations where they
+      // fail to update the lock file's mtime. (POSIX requires that fopen()
+      // update the file's mtime when the mode is "wb".)
       build_start = disk_interface_->Stat(lock_file_path_, err);
       if (build_start == -1)
         build_start = 0;
@@ -1024,10 +1032,10 @@ bool Builder::ExtractDeps(BuildResult::CommandCompleted& result,
       // complexity in IncludesNormalize::Relativize.
       deps_nodes->push_back(state_->GetNode(*i, ~0u));
     }
-  } else if (deps_type == "gcc") {
+  } else if (deps_type == "gcc" || deps_type == "zero") {
     string depfile = result.edge->GetUnescapedDepfile();
     if (depfile.empty()) {
-      *err = string("edge with deps=gcc but no depfile makes no sense");
+      *err = string("edge with deps=") + deps_type + string(" but no depfile makes no sense");
       return false;
     }
 
@@ -1045,17 +1053,31 @@ bool Builder::ExtractDeps(BuildResult::CommandCompleted& result,
     if (content.empty())
       return true;
 
-    DepfileParser deps(config_.depfile_parser_options);
-    if (!deps.Parse(&content, err))
-      return false;
+    if (deps_type == "gcc") {
+      DepfileParser deps(config_.depfile_parser_options);
+      if (!deps.Parse(&content, err))
+        return false;
 
-    // XXX check depfile matches expected output.
-    deps_nodes->reserve(deps.ins_.size());
-    for (vector<StringPiece>::iterator i = deps.ins_.begin();
-         i != deps.ins_.end(); ++i) {
-      uint64_t slash_bits;
-      CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
-      deps_nodes->push_back(state_->GetNode(*i, slash_bits));
+      // XXX check depfile matches expected output.
+      deps_nodes->reserve(deps.ins_.size());
+      for (vector<StringPiece>::iterator i = deps.ins_.begin();
+           i != deps.ins_.end(); ++i) {
+        uint64_t slash_bits;
+        CanonicalizePath(const_cast<char*>(i->str_), &i->len_, &slash_bits);
+        deps_nodes->push_back(state_->GetNode(*i, slash_bits));
+      }
+    } else {
+      /* deps_type == "zero" */
+      const char* ptr = content.c_str();
+      const char* const end = &content.back() + 1;
+      while (ptr < end) {
+        StringPiece piece = ptr;
+        // ptr is advanced first, because `piece.len_` is modified by `CanonicalizePath`
+        ptr += piece.size() + 1;
+        uint64_t slash_bits;
+        CanonicalizePath(const_cast<char*>(piece.str_), &piece.len_, &slash_bits);
+        deps_nodes->push_back(state_->GetNode(piece, slash_bits));
+      }
     }
 
     if (!g_keep_depfile) {

@@ -72,7 +72,7 @@ int LoadManifests(bool measure_command_evaluation) {
   int optimization_guard = 0;
   if (measure_command_evaluation)
     for (size_t i = 0; i < state.edges_.size(); ++i)
-      optimization_guard += state.edges_[i]->EvaluateCommand().size();
+      optimization_guard += static_cast<int>(state.edges_[i]->EvaluateCommand().size());
   return optimization_guard;
 }
 

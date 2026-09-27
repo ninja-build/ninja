@@ -786,4 +786,59 @@ TEST_F(DepsLogTest, DuplicatePathRecovery) {
   }
 }
 
+// A deps record with an out_id past the path table used to be accepted by
+// Load(), after which Recompact() indexed nodes_ out of bounds.
+TEST_F(DepsLogTest, RecompactBogusOutId) {
+  {
+    State state;
+    DepsLog log;
+    string err;
+    EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h", 0));
+    log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
+    log.Close();
+  }
+
+  {
+    RealDiskInterface disk;
+    string contents, err;
+    ASSERT_EQ(FileReader::Okay, disk.ReadFile(kTestFilename, &contents, &err));
+
+    // clang-format off
+    static const uint8_t kBogusDeps[] = {
+      // size = 12, high bit set (deps record)
+      0x0c, 0x00, 0x00, 0x80,
+      // out_id = 99, past the path records written above
+      0x63, 0x00, 0x00, 0x00,
+      // mtime
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+    };
+    // clang-format on
+
+    contents.append(reinterpret_cast<const char*>(kBogusDeps),
+                    sizeof(kBogusDeps));
+    ASSERT_TRUE(disk.WriteFile(kTestFilename, contents, false));
+  }
+
+  {
+    State state;
+    DepsLog log;
+    string err;
+    ASSERT_EQ(LOAD_SUCCESS, log.Load(kTestFilename, &state, &err));
+    ASSERT_EQ("premature end of file; recovering", err);
+
+    DepsLog::Deps* deps = log.GetDeps(state.GetNode("out.o", 0));
+    ASSERT_TRUE(deps);
+    ASSERT_EQ(1, deps->node_count);
+
+    err.clear();
+    ASSERT_TRUE(log.Recompact(kTestFilename, &err));
+    ASSERT_EQ("", err);
+  }
+}
+
 }  // anonymous namespace

@@ -213,9 +213,14 @@ TEST(CanonicalizePath, PathSamplesWindows) {
   CanonicalizePath(&path);
   EXPECT_EQ("/foo", path);
 
+  // UNC prefix must stay as backslashes for Win32 file APIs (#2800).
   path = "\\\\foo";
   CanonicalizePath(&path);
-  EXPECT_EQ("//foo", path);
+  EXPECT_EQ("\\\\foo", path);
+
+  path = "\\\\foo\\bar\\baz\\patchlevel.h";
+  CanonicalizePath(&path);
+  EXPECT_EQ("\\\\foo/bar/baz/patchlevel.h", path);
 
   path = "\\";
   CanonicalizePath(&path);

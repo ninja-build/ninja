@@ -14,6 +14,8 @@
 
 #include "line_printer.h"
 
+#include <cstdlib>
+
 #include <stdio.h>
 #include <stdlib.h>
 #ifdef _WIN32

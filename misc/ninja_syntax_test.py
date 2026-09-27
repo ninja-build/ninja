@@ -134,6 +134,22 @@ foo = a$$ $
 ''',
                          self.out.getvalue())
 
+class TestEscapePath(unittest.TestCase):
+    def test_space_and_colon(self) -> None:
+        self.assertEqual('foo$ bar', ninja_syntax.escape_path('foo bar'))
+        self.assertEqual('C$:\\foo', ninja_syntax.escape_path('C:\\foo'))
+
+    def test_dollar_in_filename(self) -> None:
+        self.assertEqual('foo$$bar', ninja_syntax.escape_path('foo$bar'))
+        self.assertEqual('foo$$$ bar', ninja_syntax.escape_path('foo$ bar'))
+
+    def test_leading_ninja_variable_is_kept(self) -> None:
+        self.assertEqual('$root/src/foo.cc',
+                         ninja_syntax.escape_path('$root/src/foo.cc'))
+        self.assertEqual('$builddir/ninja.o',
+                         ninja_syntax.escape_path('$builddir/ninja.o'))
+
+
 class TestBuild(unittest.TestCase):
     def setUp(self) -> None:
         self.out = StringIO()
@@ -160,6 +176,15 @@ build out: cc in
         self.assertEqual('''\
 build o | io: cc i
 ''',
+                         self.out.getvalue())
+
+    def test_dollar_in_build_paths(self) -> None:
+        self.n.build('out$put', 'cc', 'in$put')
+        self.assertEqual('build out$$put: cc in$$put\n', self.out.getvalue())
+
+    def test_ninja_variable_prefix_in_build_paths(self) -> None:
+        self.n.build('$builddir/out', 'cc', '$root/in.cc')
+        self.assertEqual('build $builddir/out: cc $root/in.cc\n',
                          self.out.getvalue())
 
 class TestExpand(unittest.TestCase):

@@ -27,7 +27,13 @@ from io import TextIOWrapper
 from typing import Dict, List, Match, Optional, Tuple, Union
 
 def escape_path(word: str) -> str:
-    return word.replace('$ ', '$$ ').replace(' ', '$ ').replace(':', '$:')
+    # Escape '$' first so foo$bar is not parsed as a $bar variable.
+    # A leading $ident is ninja generator syntax ($root, $builddir), not a
+    # filename that starts with '$'.
+    if (len(word) > 1 and word[0] == '$' and
+            (word[1].isalpha() or word[1] == '_' or word[1] == '{')):
+        return word.replace(' ', '$ ').replace(':', '$:')
+    return word.replace('$', '$$').replace(' ', '$ ').replace(':', '$:')
 
 class Writer(object):
     def __init__(self, output: TextIOWrapper, width: int = 78) -> None:

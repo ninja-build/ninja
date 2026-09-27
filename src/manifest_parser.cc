@@ -36,6 +36,10 @@ ManifestParser::ManifestParser(State* state, FileReader* file_reader,
   env_ = &state->bindings_;
 }
 
+std::string ManifestParser::LookupVariable(const std::string& varname) {
+  return env_->LookupVariable(varname);
+}
+
 bool ManifestParser::Parse(const string& filename, const string& input,
                            string* err) {
   lexer_.Start(filename, input);
@@ -391,6 +395,7 @@ bool ManifestParser::ParseEdge(string* err) {
     vector<Node*>::iterator new_end =
         remove(edge->inputs_.begin(), edge->inputs_.end(), out);
     if (new_end != edge->inputs_.end()) {
+      out->RemoveOutEdge(edge);
       edge->inputs_.erase(new_end, edge->inputs_.end());
       if (!quiet_) {
         Warning("phony target '%s' names itself as an input; "

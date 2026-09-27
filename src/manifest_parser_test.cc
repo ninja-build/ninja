@@ -366,6 +366,32 @@ TEST_F(ParserTest, PhonySelfReferenceIgnored) {
   Node* node = state.LookupNode("a");
   Edge* edge = node->in_edge();
   ASSERT_TRUE(edge->inputs_.empty());
+  ASSERT_TRUE(node->out_edges().empty());
+}
+
+TEST_F(ParserTest, PhonySelfReferenceWithOrderOnlyInputKept) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"build a: phony b c || a\n"
+));
+
+  Node* node = state.LookupNode("a");
+  Edge* edge = node->in_edge();
+  ASSERT_EQ(size_t(3), edge->inputs_.size());
+  EXPECT_EQ("b", edge->inputs_[0]->path());
+  EXPECT_EQ("c", edge->inputs_[1]->path());
+  EXPECT_EQ(node, edge->inputs_[2]);
+  EXPECT_EQ(1, edge->order_only_deps_);
+}
+
+TEST_F(ParserTest, PhonySelfReferenceKeepsOtherOutEdge) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(
+"build a: phony a\n"
+"build b: phony a\n"
+));
+
+  Node* node = state.LookupNode("a");
+  ASSERT_EQ(size_t(1), node->out_edges().size());
+  EXPECT_EQ(state.LookupNode("b")->in_edge(), node->out_edges()[0]);
 }
 
 TEST_F(ParserTest, PhonySelfReferenceKept) {
@@ -1146,4 +1172,29 @@ TEST_F(ParserTest, DyndepRuleInput) {
   ASSERT_TRUE(edge->dyndep_);
   EXPECT_TRUE(edge->dyndep_->dyndep_pending());
   EXPECT_EQ(edge->dyndep_->path(), "in");
+}
+
+struct ManifestParserTest : public testing::Test {
+  ManifestParserTest() : parser(&state, &fs_) {}
+
+  void AssertParse(const char* input) {
+    string err;
+    EXPECT_TRUE(parser.ParseTest(input, &err));
+    ASSERT_EQ("", err);
+    VerifyGraph(state);
+  }
+
+  State state;
+  VirtualFileSystem fs_;
+  ManifestParser parser;
+};
+
+TEST_F(ManifestParserTest, LookupVariable) {
+  ASSERT_NO_FATAL_FAILURE(
+      AssertParse("foo = World\n"
+                  "bar = Hello $foo\n"));
+
+  ASSERT_EQ(parser.LookupVariable("foo"), "World");
+  ASSERT_EQ(parser.LookupVariable("bar"), "Hello World");
+  ASSERT_EQ(parser.LookupVariable("zoo"), "");
 }

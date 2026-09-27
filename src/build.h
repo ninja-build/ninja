@@ -193,8 +193,12 @@ struct BuildConfig {
   };
   Verbosity verbosity = NORMAL;
   bool dry_run = false;
+  /// Number of concurrent jobs, auto-detected or specified explicitly.
   int parallelism = 1;
-  bool disable_jobserver_client = false;
+  /// True if -j<count> was used on the command line.
+  bool explicit_parallelism = false;
+  /// True if --jobserver-pool was used on the command line.
+  bool jobserver_pool = false;
   int failures_allowed = 1;
   /// The maximum load average we must not exceed. A negative value
   /// means that we do not have any limit.
@@ -268,7 +272,7 @@ private:
                    std::vector<Node*>* deps_nodes, std::string* err);
 
   /// Map of running edge to time the edge started running.
-  typedef std::map<const Edge*, int> RunningEdgeMap;
+  typedef std::map<const Edge*, int64_t> RunningEdgeMap;
   RunningEdgeMap running_edges_;
 
   /// Time the build started.
