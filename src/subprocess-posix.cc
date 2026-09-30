@@ -483,11 +483,16 @@ Subprocess* SubprocessSet::NextFinished() {
 
 void SubprocessSet::Clear() {
   for (vector<Subprocess*>::iterator i = running_.begin();
-       i != running_.end(); ++i)
-    // Since the foreground process is in our process group, it will receive
-    // the interruption signal (i.e. SIGINT or SIGTERM) at the same time as us.
-    if (!(*i)->use_console_)
+       i != running_.end(); ++i) {
+    if (!(*i)->use_console_) {
       kill(-(*i)->pid_, interrupted_);
+    } else if (interrupted_ == SIGTERM) {
+      // The console process is in our process group, so a SIGINT or SIGHUP
+      // from the terminal reaches it at the same time as us. SIGTERM is
+      // usually sent to ninja alone, so forward it.
+      kill((*i)->pid_, SIGTERM);
+    }
+  }
   for (vector<Subprocess*>::iterator i = running_.begin();
        i != running_.end(); ++i)
     delete *i;
