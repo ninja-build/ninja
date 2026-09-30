@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <time.h>
 #include <unistd.h>
 #endif
 
@@ -153,6 +154,25 @@ TEST_F(SubprocessTest, InterruptParentWithSigTerm) {
   }
 
   ASSERT_FALSE("We should have been interrupted");
+}
+
+TEST_F(SubprocessTest, InterruptParentWithSigTermConsole) {
+  Subprocess* subproc = subprocs_.Add("kill -TERM $PPID ; exec sleep 30",
+                                      /*use_console=*/true);
+  ASSERT_NE((Subprocess *) 0, subproc);
+
+  SubprocessSet::WorkResult status;
+  do {
+    status = subprocs_.DoWork();
+  } while (status != SubprocessSet::WorkResult::Interrupted &&
+           !subproc->Done());
+  ASSERT_EQ(SubprocessSet::WorkResult::Interrupted, status);
+
+  // Clear() waits for the console process, so it only returns promptly if
+  // the SIGTERM was forwarded.
+  time_t start = time(NULL);
+  subprocs_.Clear();
+  EXPECT_LT(time(NULL) - start, 10);
 }
 
 TEST_F(SubprocessTest, InterruptChildWithSigHup) {
