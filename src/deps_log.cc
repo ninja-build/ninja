@@ -209,6 +209,13 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
         read_failed = true;
         break;
       }
+      // A deps record must hold at least out_id and the 8-byte mtime;
+      // anything smaller would make deps_count negative below and hand
+      // a negative size to the Deps constructor.
+      if (size < 12) {
+        read_failed = true;
+        break;
+      }
       int* deps_data = reinterpret_cast<int*>(buf);
       int out_id = deps_data[0];
       // A truncated or concurrent write can leave a deps record whose
@@ -226,7 +233,9 @@ LoadStatus DepsLog::Load(const string& path, State* state, string* err) {
 
       for (int i = 0; i < deps_count; ++i) {
         int node_id = deps_data[i];
-        if (node_id >= (int)nodes_.size() || !nodes_[node_id]) {
+        // Like out_id above, node ids must be non-negative: a negative
+        // id would index nodes_ out of bounds before the null check runs.
+        if (node_id < 0 || node_id >= (int)nodes_.size() || !nodes_[node_id]) {
           read_failed = true;
           break;
         }
