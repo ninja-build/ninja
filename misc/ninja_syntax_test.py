@@ -150,6 +150,21 @@ class TestEscapePath(unittest.TestCase):
                          ninja_syntax.escape_path('$builddir/ninja.o'))
 
 
+class TestDefault(unittest.TestCase):
+    def setUp(self) -> None:
+        self.out = StringIO()
+        self.n = ninja_syntax.Writer(self.out)
+
+    def test_escapes_spaces_in_paths(self) -> None:
+        # Without escape_path, a single path with a space becomes two defaults.
+        self.n.default('foo bar')
+        self.assertEqual('default foo$ bar\n', self.out.getvalue())
+
+    def test_escapes_each_path_in_a_list(self) -> None:
+        self.n.default(['a b', 'c:d'])
+        self.assertEqual('default a$ b c$:d\n', self.out.getvalue())
+
+
 class TestBuild(unittest.TestCase):
     def setUp(self) -> None:
         self.out = StringIO()
