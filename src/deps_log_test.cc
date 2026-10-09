@@ -841,4 +841,54 @@ TEST_F(DepsLogTest, RecompactBogusOutId) {
   }
 }
 
+// A deps record carrying a negative dependency id used to pass the
+// "id past the path table" check (a negative value is not >= nodes_.size())
+// and then index nodes_ out of bounds. Load() must reject it instead.
+TEST_F(DepsLogTest, NegativeDepId) {
+  {
+    State state;
+    DepsLog log;
+    string err;
+    EXPECT_TRUE(log.OpenForWrite(kTestFilename, &err));
+    ASSERT_EQ("", err);
+
+    vector<Node*> deps;
+    deps.push_back(state.GetNode("foo.h", 0));
+    log.RecordDeps(state.GetNode("out.o", 0), 1, deps);
+    log.Close();
+  }
+
+  {
+    RealDiskInterface disk;
+    string contents, err;
+    ASSERT_EQ(FileReader::Okay, disk.ReadFile(kTestFilename, &contents, &err));
+
+    // clang-format off
+    static const uint8_t kBadDepId[] = {
+      // size = 16, high bit set (deps record)
+      0x10, 0x00, 0x00, 0x80,
+      // out_id = 0 ("out.o", a valid path record)
+      0x00, 0x00, 0x00, 0x00,
+      // mtime
+      0x00, 0x00, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00,
+      // dependency id = -1, a negative index into nodes_
+      0xff, 0xff, 0xff, 0xff,
+    };
+    // clang-format on
+
+    contents.append(reinterpret_cast<const char*>(kBadDepId),
+                    sizeof(kBadDepId));
+    ASSERT_TRUE(disk.WriteFile(kTestFilename, contents, false));
+  }
+
+  {
+    State state;
+    DepsLog log;
+    string err;
+    ASSERT_EQ(LOAD_SUCCESS, log.Load(kTestFilename, &state, &err));
+    ASSERT_EQ("premature end of file; recovering", err);
+  }
+}
+
 }  // anonymous namespace
