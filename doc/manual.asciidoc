@@ -1220,6 +1220,44 @@ express the implicit dependency.)
 File paths are compared as is, which means that an absolute path and a
 relative path, pointing to the same file, are considered different by Ninja.
 
+[[dir_inputs]]
+Directory inputs
+~~~~~~~~~~~~~~~~
+
+_Available since Ninja 1.14._
+
+An input path with a trailing path separator (e.g. `src/optional/`) is a
+_directory input_. It is meant for generators that expand globs such as
+`src/optional/*.cpp`: listing `src/optional/` as an input of the regeneration
+edge makes Ninja re-run the generator when the result of the glob may have
+changed.
+
+Ninja uses the modification time of the directory itself. Most file systems
+update it whenever entries are added to, removed from or renamed in the
+directory, but not when the contents of a file inside it change.
+
+Unlike other inputs, a directory input never fails the build, even if the
+directory doesn't exist. Instead, Ninja uses the modification time of its
+nearest existing ancestor (or of the current directory). This way:
+
+* creating the directory makes the dependent edges dirty, as its modification
+  time is newer than their outputs,
+* removing the directory makes them dirty, as this updates the modification
+  time of its parent,
+* a directory that doesn't exist and never did doesn't make them dirty on every
+  run.
+
+Note that a directory input (or, while it's missing, its nearest existing
+ancestor) must not be a directory that the build itself writes to, as this
+would make the dependent edges dirty again after each run.
+
+Without the trailing separator (e.g. `src/optional`), a path is a regular input,
+which may point to a directory too, but which fails the build if it's missing.
+As the trailing separator is part of the path, `src/optional/` and
+`src/optional` are different nodes. Directory inputs can only be specified on
+build lines of the manifest; paths in depfiles and dyndep files are always
+regular inputs.
+
 [[validations]]
 Validations
 ~~~~~~~~~~~

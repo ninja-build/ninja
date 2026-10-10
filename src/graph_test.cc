@@ -1255,3 +1255,116 @@ TEST_F(GraphTest, PhonyOutputWithValidation) {
   ASSERT_EQ(1u, validation_nodes.size());
   EXPECT_EQ("valid", validation_nodes[0]->path());
 }
+
+// A trailing slash in a manifest input marks the input as a directory. The
+// slash is kept in the node's path, so "indir/" and "indir" are different
+// nodes.
+TEST_F(GraphTest, DirectoryInputParsed) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat ./indir/ indir/sub/../ indir\n"));
+
+  Node* dir_node = state_.LookupNode("indir/");
+  EXPECT_TRUE(dir_node->is_directory());
+  EXPECT_FALSE(GetNode("indir")->is_directory());
+  Edge* edge = GetNode("out")->in_edge();
+  ASSERT_EQ(3u, edge->inputs_.size());
+  EXPECT_EQ(dir_node, edge->inputs_[0]);
+  EXPECT_EQ(dir_node, edge->inputs_[1]);
+  EXPECT_EQ("cat indir/ indir/ indir > out", edge->EvaluateCommand());
+}
+
+// When the directory mtime advances past the output's mtime (e.g. because a
+// file was added to it), the output is dirty.
+TEST_F(GraphTest, DirectoryInputDirty) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat indir/\n"));
+  fs_.Create("indir", "");
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("indir", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(state_.LookupNode("indir/")->dirty());
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+TEST_F(GraphTest, DirectoryInputUpToDate) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat indir/\n"));
+  fs_.Create("indir", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(GetNode("out")->dirty());
+}
+
+// A directory that doesn't exist is neither an error nor does it make its
+// dependents dirty, as long as its parent didn't change.
+TEST_F(GraphTest, DirectoryInputMissing) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat src/optional/\n"));
+  fs_.Create("src", "");
+  fs_.Tick();
+  fs_.Create("out", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+  Node* dir_node = state_.LookupNode("src/optional/");
+  EXPECT_FALSE(dir_node->exists());
+  EXPECT_FALSE(dir_node->dirty());
+  EXPECT_EQ(1, dir_node->mtime());
+  EXPECT_FALSE(GetNode("out")->dirty());
+
+  // Building doesn't fail with "missing and no known rule to make it".
+  Plan plan;
+  EXPECT_FALSE(plan.AddTarget(GetNode("out"), &err));
+  EXPECT_EQ("", err);
+}
+
+// Removing a directory updates the mtime of its parent, which makes the
+// dependents dirty.
+TEST_F(GraphTest, DirectoryInputRemoved) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat src/optional/\n"));
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create("src", "");  // "src/optional" was removed.
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_FALSE(state_.LookupNode("src/optional/")->dirty());
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+// If no ancestor exists, the current directory is used.
+TEST_F(GraphTest, DirectoryInputMissingAncestors) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat a/b/c/\n"));
+  fs_.Create("out", "");
+  fs_.Tick();
+  fs_.Create(".", "");
+
+  string err;
+  EXPECT_TRUE(scan_.RecomputeDirty(GetNode("out"), NULL, &err));
+  ASSERT_EQ("", err);
+  EXPECT_EQ(2, state_.LookupNode("a/b/c/")->mtime());
+  EXPECT_TRUE(GetNode("out")->dirty());
+}
+
+#ifdef _WIN32
+TEST_F(GraphTest, DirectoryInputBackslash) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build out: cat a\\b\\ a/b\\ a\\b/\n"));
+  Edge* edge = GetNode("out")->in_edge();
+  ASSERT_EQ(3u, edge->inputs_.size());
+  EXPECT_EQ("a/b/", edge->inputs_[0]->path());
+  EXPECT_EQ("a\\b\\", edge->inputs_[0]->PathDecanonicalized());
+}
+#endif
