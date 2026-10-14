@@ -784,6 +784,38 @@ void Edge::Dump(const char* prefix) const {
   printf("] 0x%p\n", this);
 }
 
+string Edge::FormatDuplicateRuleError(const Edge* current,
+                                      const Edge* previous,
+                                      StringPiece path) {
+  string msg = "multiple rules generate " + path.AsString();
+  if (current && current->rule_ && previous && previous->rule_) {
+    msg += " (defined by rule '" + current->rule_->name() +
+           "', previously defined by rule '" + previous->rule_->name() + "'";
+  } else if (previous && previous->rule_) {
+    msg += " (previously defined by rule '" + previous->rule_->name() + "'";
+  } else if (current && current->rule_) {
+    msg += " (defined by rule '" + current->rule_->name() + "')";
+    return msg;
+  } else {
+    return msg;
+  }
+
+  if (previous->inputs_.empty()) {
+    msg += ")";
+  } else if (previous->inputs_.size() == 1) {
+    msg += " with input '" + previous->inputs_[0]->path() + "')";
+  } else {
+    msg += " with inputs [";
+    for (size_t i = 0; i < previous->inputs_.size(); ++i) {
+      if (i > 0)
+        msg += ", ";
+      msg += "'" + previous->inputs_[i]->path() + "'";
+    }
+    msg += "])";
+  }
+  return msg;
+}
+
 bool Edge::is_phony() const {
   return rule_->IsPhony();
 }

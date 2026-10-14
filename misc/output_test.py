@@ -703,8 +703,9 @@ build stamp-2: touch || dd-2
                 r"printf 'ninja_dyndep_version = 1\nbuild stamp-2 | out: dyndep\n' > dd-2",
             },
         )
-        self.assertEqual(
-            actual_lines[2], "ninja: build stopped: multiple rules generate out."
+        self.assertRegex(
+            actual_lines[2],
+            r"^ninja: build stopped: multiple rules generate out \(defined by rule 'touch', previously defined by rule 'touch' with input 'dd-[12]'\)\.$"
         )
 
     def test_issue_2681(self):

@@ -784,7 +784,10 @@ TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules1) {
   string err;
   ASSERT_TRUE(GetNode("dd")->dyndep_pending());
   EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd"), &err));
-  EXPECT_EQ("multiple rules generate out-twice.imp", err);
+  EXPECT_EQ(
+      "multiple rules generate out-twice.imp (defined by rule 'r', "
+      "previously defined by rule 'r' with input 'in1')",
+      err);
 }
 
 TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules2) {
@@ -811,7 +814,10 @@ TEST_F(GraphTest, DyndepLoadOutputWithMultipleRules2) {
   EXPECT_EQ("", err);
   ASSERT_TRUE(GetNode("dd2")->dyndep_pending());
   EXPECT_FALSE(scan_.LoadDyndeps(GetNode("dd2"), &err));
-  EXPECT_EQ("multiple rules generate out-twice.imp", err);
+  EXPECT_EQ(
+      "multiple rules generate out-twice.imp (defined by rule 'r', "
+      "previously defined by rule 'r' with inputs ['in1', 'dd1'])",
+      err);
 }
 
 TEST_F(GraphTest, DyndepLoadMultiple) {
