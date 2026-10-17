@@ -144,6 +144,85 @@ def run(
     with BuildDir(build_ninja) as b:
         return b.run(flags, pipe, raw_output, env, print_err_output)
 
+class ToolTargets(unittest.TestCase):
+    BUILD_PLAN = '''\
+rule echo
+  command = echo $out
+build foo.o: echo
+build bar.o: echo
+build baz.o: echo
+'''
+    BUILD_WITH_DEPS = '''\
+rule echo
+  command = echo $out
+build foo.dep: echo
+build foo.o: echo foo.dep
+build bar.dep: echo
+build bar.o: echo bar.dep
+'''
+
+    def run_tool(self, build_dir: BuildDir, args: T.Sequence[str]) -> subprocess.CompletedProcess:
+        env = default_env.copy()
+        env.pop('POSIXLY_CORRECT', None)
+        return subprocess.run(
+            [NINJA_PATH, *args], cwd=build_dir.path, env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+
+    def test_targets_before_commands_tool(self) -> None:
+        with BuildDir(self.BUILD_PLAN) as b:
+            expected = self.run_tool(b, ['-t', 'commands', 'foo.o', 'bar.o'])
+            self.assertEqual(expected.returncode, 0, expected.stderr)
+            self.assertEqual(expected.stdout, 'echo foo.o\necho bar.o\n')
+
+            for args in (['foo.o', 'bar.o', '-t', 'commands'],
+                         ['foo.o', '-t', 'commands', 'bar.o']):
+                with self.subTest(args=args):
+                    result = self.run_tool(b, args)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, expected.stdout)
+
+    def test_targets_before_clean_tool(self) -> None:
+        with BuildDir(self.BUILD_PLAN) as b:
+            for name in ('foo.o', 'bar.o', 'baz.o'):
+                with open(os.path.join(b.path, name), 'w'):
+                    pass
+
+            result = self.run_tool(b, ['foo.o', '-t', 'clean', 'bar.o'])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertFalse(os.path.exists(os.path.join(b.path, 'foo.o')))
+            self.assertFalse(os.path.exists(os.path.join(b.path, 'bar.o')))
+            self.assertTrue(os.path.exists(os.path.join(b.path, 'baz.o')))
+
+    def test_tool_options_stay_after_tool_selection(self) -> None:
+        with BuildDir(self.BUILD_WITH_DEPS) as b:
+            result = self.run_tool(b, ['-t', 'commands', '-s', 'foo.o'])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout, 'echo foo.o\n')
+
+            invalid = self.run_tool(b, ['-s', 'foo.o', '-t', 'commands'])
+            self.assertNotEqual(invalid.returncode, 0)
+            self.assertIn('usage: ninja [options]', invalid.stderr)
+
+    def test_target_before_clustered_tool_option(self) -> None:
+        with BuildDir(self.BUILD_PLAN) as b:
+            for args in (['foo.o', '-vtcommands', 'bar.o'],
+                         ['foo.o', '-vt', 'commands', 'bar.o']):
+                with self.subTest(args=args):
+                    result = self.run_tool(b, args)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, 'echo foo.o\necho bar.o\n')
+
+    def test_target_before_clustered_build_options(self) -> None:
+        with BuildDir(self.BUILD_PLAN) as b:
+            for args in (['foo.o', '-nv', 'bar.o'],
+                         ['foo.o', '-nvv', 'bar.o']):
+                with self.subTest(args=args):
+                    result = self.run_tool(b, args)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn('echo foo.o', result.stdout)
+                    self.assertIn('echo bar.o', result.stdout)
+                    self.assertNotIn('echo baz.o', result.stdout)
+
 @unittest.skipIf(platform.system() == 'Windows', 'These test methods do not work on Windows')
 class Output(unittest.TestCase):
     BUILD_SIMPLE_ECHO = '\n'.join((
