@@ -293,11 +293,44 @@ bool RecomputeOutputsDirtyCache::RecomputeOutputDirty(
 }  // namespace
 
 bool Node::Stat(DiskInterface* disk_interface, string* err) {
+  if (is_directory())
+    return StatDirectory(disk_interface, err);
   mtime_ = disk_interface->Stat(path_, err);
   if (mtime_ == -1) {
     return false;
   }
   exists_ = (mtime_ != 0) ? ExistenceStatusExists : ExistenceStatusMissing;
+  return true;
+}
+
+bool Node::StatDirectory(DiskInterface* disk_interface, string* err) {
+  // Stat the directory without its trailing slash, which not every
+  // DiskInterface implementation handles. Its mtime changes whenever entries
+  // are added to, removed from or renamed in it.
+  string dir = path_.size() > 1 ? path_.substr(0, path_.size() - 1) : path_;
+  mtime_ = disk_interface->Stat(dir, err);
+  if (mtime_ == -1) {
+    return false;
+  }
+  exists_ = (mtime_ != 0) ? ExistenceStatusExists : ExistenceStatusMissing;
+
+  // A missing directory is not an error. Use the mtime of the nearest existing
+  // ancestor instead: removing the directory updates its parent's mtime, so
+  // dependents still become dirty, while a directory that never existed doesn't
+  // make them dirty on every run.
+  while (mtime_ == 0 && dir != "." && dir != "/") {
+    string::size_type slash_pos = dir.find_last_of('/');
+    if (slash_pos == string::npos)
+      dir = ".";
+    else if (slash_pos == 0)
+      dir = "/";
+    else
+      dir.resize(slash_pos);
+    mtime_ = disk_interface->Stat(dir, err);
+    if (mtime_ == -1) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -404,6 +437,12 @@ bool DependencyScan::RecomputeNodeDirty(Node* node, std::vector<Node*>* stack,
     // This node has no in-edge; it is dirty if it is missing.
     if (!node->StatIfNecessary(disk_interface_, err))
       return false;
+    // Directory inputs are never dirty, not even when missing. They only
+    // affect their dependents through their mtime.
+    if (node->is_directory()) {
+      node->set_dirty(false);
+      return true;
+    }
     if (!node->exists())
       explanations_.Record(node, "%s has no in-edge and is missing",
                            node->path().c_str());
