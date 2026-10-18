@@ -1860,10 +1860,11 @@ int ReadFlags(int* argc, char*** argv,
     { "jobserver-pool", no_argument, NULL, OPT_JOBSERVER_POOL },
     { NULL, 0, NULL, 0 }
   };
+  const char kShortOptions[] = "d:f:j:k:l:nt:vw:C:h";
 
   int opt;
   while (!options->tool &&
-         (opt = getopt_long(*argc, *argv, "d:f:j:k:l:nt:vw:C:h", kLongOptions,
+         (opt = getopt_long(*argc, *argv, kShortOptions, kLongOptions,
                             NULL)) != -1) {
     switch (opt) {
       case 'd':
@@ -1944,6 +1945,11 @@ int ReadFlags(int* argc, char*** argv,
         Usage(*config);
         return 1;
     }
+  }
+  if (options->tool) {
+    // Some getopt implementations defer permuting targets until the next call.
+    // Limit that call to the consumed prefix so tool arguments stay untouched.
+    getopt_long(optind, *argv, kShortOptions, kLongOptions, NULL);
   }
   *argv += optind;
   *argc -= optind;

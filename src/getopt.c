@@ -148,8 +148,9 @@ getopt_internal (int argc, char **argv, char *shortopts,
 {
   GETOPT_ORDERING_T ordering = PERMUTE;
   static size_t optwhere = 0;
-  size_t permute_from = 0;
-  int num_nonopts = 0;
+  /* A short-option cluster can defer permutation across calls. */
+  static size_t permute_from = 0;
+  static int num_nonopts = 0;
   int optindex = 0;
   size_t match_chars = 0;
   char *possible_arg = NULL;
@@ -173,6 +174,8 @@ getopt_internal (int argc, char **argv, char *shortopts,
     {
       optind = 1;
       optwhere = 1;
+      permute_from = 0;
+      num_nonopts = 0;
     }
 
   /* define ordering */
@@ -367,6 +370,7 @@ getopt_internal (int argc, char **argv, char *shortopts,
     {
       permute (argv + permute_from, num_nonopts, 1 + arg_next);
       optind = (int)permute_from + 1 + arg_next;
+      num_nonopts = 0;
     }
   else if (optwhere == 1)
     optind = optind + 1 + arg_next;

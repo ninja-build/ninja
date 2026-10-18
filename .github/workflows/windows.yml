@@ -44,6 +44,11 @@ jobs:
       run: .\ninja_test.exe
       working-directory: build/Release
 
+    - name: Test tool targets (Release)
+      if: matrix.arch != 'arm64'
+      run: python ../../misc/output_test.py ToolTargets -v
+      working-directory: build/Release
+
     - name: Create ninja archive
       shell: bash
       run: |
