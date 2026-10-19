@@ -97,6 +97,11 @@ Node* StateTestWithBuiltinRules::GetNode(const string& path) {
   return state_.GetNode(path, 0);
 }
 
+const Node* StateTestWithBuiltinRules::GetLookupNode(const string& path) const {
+  EXPECT_FALSE(strpbrk(path.c_str(), "/\\"));
+  return state_.LookupNode(path);
+}
+
 void AssertParse(State* state, const char* input,
                  ManifestParserOptions opts) {
   ManifestParser parser(state, NULL, opts);
