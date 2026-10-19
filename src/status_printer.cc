@@ -359,6 +359,18 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
         break;
       }
 
+      // OSC 9;4 progress bar for percentage of edges
+      case 'b': {
+        int percent = 0;
+        if (finished_edges_ != 0 && total_edges_ != 0)
+          percent = (100 * finished_edges_) / total_edges_;
+        int state = finished_edges_ == total_edges_ ? 0 : 1;
+
+        snprintf(buf, sizeof(buf), "\x1b]9;4;%i;%i\x7", state, percent);
+        out += buf;
+        break;
+      }
+
 #define FORMAT_TIME_HMMSS(t)                                                \
   "%" PRId64 ":%02" PRId64 ":%02" PRId64 "", (t) / 3600, ((t) % 3600) / 60, \
       (t) % 60
@@ -421,6 +433,16 @@ string StatusPrinter::FormatProgressStatus(const char* progress_status_format,
       case 'P': {
         snprintf(buf, sizeof(buf), "%3i%%",
                  (int)(100. * time_predicted_percentage_));
+        out += buf;
+        break;
+      }
+
+      // OSC 9;4 progress bar for predicted time
+      case 'B': {
+        int percent = (int)(100. * time_predicted_percentage_);
+        int state = finished_edges_ == total_edges_ ? 0 : 1;
+
+        snprintf(buf, sizeof(buf), "\x1b]9;4;%i;%i\x7", state, percent);
         out += buf;
         break;
       }
