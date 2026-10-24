@@ -150,6 +150,59 @@ TEST_F(CleanTest, CleanTargetMultiOutput) {
   EXPECT_LT(0, fs_.Stat("out3", &err));
 }
 
+TEST_F(CleanTest, CleanTargets) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build in1: cat src1\n"
+"build out1: cat in1\n"
+"build in2: cat src2\n"
+"build out2: cat in2\n"));
+  fs_.Create("in1", "");
+  fs_.Create("out1", "");
+  fs_.Create("in2", "");
+  fs_.Create("out2", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+
+  ASSERT_EQ(0, cleaner.cleaned_files_count());
+  vector<Node*> targets;
+  targets.push_back(state_.LookupNode("out1"));
+  targets.push_back(state_.LookupNode("out2"));
+  ASSERT_EQ(0, cleaner.CleanTargets(targets));
+  EXPECT_EQ(4, cleaner.cleaned_files_count());
+  EXPECT_EQ(4u, fs_.files_removed_.size());
+
+  // Check they are removed.
+  string err;
+  EXPECT_EQ(0, fs_.Stat("in1", &err));
+  EXPECT_EQ(0, fs_.Stat("out1", &err));
+  EXPECT_EQ(0, fs_.Stat("in2", &err));
+  EXPECT_EQ(0, fs_.Stat("out2", &err));
+}
+
+TEST_F(CleanTest, CleanTargetsDeduplication) {
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
+"build shared: cat src\n"
+"build out1: cat shared\n"
+"build out2: cat shared\n"));
+  fs_.Create("shared", "");
+  fs_.Create("out1", "");
+  fs_.Create("out2", "");
+
+  Cleaner cleaner(&state_, config_, &fs_);
+
+  vector<Node*> targets;
+  targets.push_back(state_.LookupNode("out1"));
+  targets.push_back(state_.LookupNode("out2"));
+  ASSERT_EQ(0, cleaner.CleanTargets(targets));
+  EXPECT_EQ(3, cleaner.cleaned_files_count());
+  EXPECT_EQ(3u, fs_.files_removed_.size());
+
+  string err;
+  EXPECT_EQ(0, fs_.Stat("shared", &err));
+  EXPECT_EQ(0, fs_.Stat("out1", &err));
+  EXPECT_EQ(0, fs_.Stat("out2", &err));
+}
+
 TEST_F(CleanTest, CleanTargetDryRun) {
   ASSERT_NO_FATAL_FAILURE(AssertParse(&state_,
 "build in1: cat src1\n"
