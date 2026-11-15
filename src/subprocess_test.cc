@@ -347,4 +347,40 @@ TEST_F(SubprocessTest, JobserverTokenAvailable) {
   ASSERT_EQ(ExitSuccess, subproc->Finish());
   ASSERT_EQ(1u, subprocs_.finished_.size());
 }
+
+TEST_F(SubprocessTest, JobserverHangupDoesNotBusySpin) {
+  // Closing the write end of an empty pipe triggers POLLHUP (ppoll) or EOF
+  // readability (pselect). Verify DoWork() does not busy-spin while waiting
+  // for a running subprocess:
+  // - Under USE_PPOLL, DoWork() sees POLLHUP without POLLIN, disarms
+  //   jobserver_fd_, and blocks until the subprocess finishes.
+  // - Under pselect, FD_ISSET wakes once so TryAcquire() can observe EOF (0)
+  //   and disarm the descriptor via SetJobserverFD(-1).
+  ScopedPipe mock_jobserver;
+  ASSERT_TRUE(mock_jobserver.IsValid());
+
+  ::close(mock_jobserver.write_fd_);
+  mock_jobserver.write_fd_ = -1;
+  subprocs_.SetJobserverFD(mock_jobserver.read_fd_);
+
+  Subprocess* subproc = subprocs_.Add("sleep 0.2");
+  ASSERT_NE((Subprocess*)0, subproc);
+
+  size_t iterations = 0;
+  while (!subproc->Done()) {
+    SubprocessSet::WorkResult result = subprocs_.DoWork();
+    ++iterations;
+    if (result == SubprocessSet::WorkResult::JobserverTokenAvailable) {
+      uint8_t byte = 0;
+      ASSERT_EQ(0, ::read(mock_jobserver.read_fd_, &byte, 1));
+      subprocs_.SetJobserverFD(-1);
+    }
+  }
+
+  // Without POLLHUP/EOF disarming, a 200ms sleep spins tens of thousands of
+  // times. With disarming, it completes in <= 3 DoWork() calls.
+  EXPECT_LE(iterations, 5u);
+  ASSERT_EQ(ExitSuccess, subproc->Finish());
+  ASSERT_EQ(1u, subprocs_.finished_.size());
+}
 #endif

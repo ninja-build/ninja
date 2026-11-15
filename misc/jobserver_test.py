@@ -602,6 +602,88 @@ build all: print
             prefix_args=[sys.executable, "-S", _JOBSERVER_POOL_SCRIPT]
         )
 
+    @unittest.skipIf(_PLATFORM_IS_WINDOWS, "These test methods do not work on Windows")
+    def test_jobserver_no_busy_spin_on_failure_or_load_throttle(self):
+        import resource
+
+        def run_and_measure_cpu(
+            build_plan: str, ninja_args: T.List[str], initial_tokens: bytes
+        ) -> T.Tuple[int, float]:
+            with ExitStack() as stack:
+                tmp_dir = tempfile.mkdtemp()
+                stack.callback(os.rmdir, tmp_dir)
+                fifo_path = os.path.join(tmp_dir, "jobserver_fifo_spin")
+                os.mkfifo(fifo_path)  # type: ignore
+                stack.callback(
+                    lambda: os.path.exists(fifo_path) and os.remove(fifo_path)
+                )
+
+                read_fd = os.open(fifo_path, os.O_RDONLY | os.O_NONBLOCK)
+                stack.callback(os.close, read_fd)
+                write_fd = os.open(fifo_path, os.O_WRONLY | os.O_NONBLOCK)
+                stack.callback(os.close, write_fd)
+
+                if initial_tokens:
+                    os.write(write_fd, initial_tokens)
+
+                env = dict(os.environ)
+                env["MAKEFLAGS"] = f" -j4 --jobserver-auth=fifo:{fifo_path}"
+
+                with BuildDir(build_plan) as b:
+                    ru0 = resource.getrusage(resource.RUSAGE_CHILDREN)
+                    proc = b.ninja_spawn(ninja_args, extra_env=env)
+                    ru1 = resource.getrusage(resource.RUSAGE_CHILDREN)
+                    cpu_sec = (ru1.ru_utime - ru0.ru_utime) + (
+                        ru1.ru_stime - ru0.ru_stime
+                    )
+                    return proc.returncode, cpu_sec
+
+        # 1) After an edge fails (failures_allowed == 0), Ninja waits for the
+        # remaining running command while ready edges and FIFO tokens remain.
+        fail_plan = """
+rule fail_fast
+    command = false
+rule slow_ok
+    command = sleep 0.5 && touch $out
+rule step
+    command = touch $out
+
+build s1: slow_ok
+build s2: step s1
+build s3: step s2
+build f1: fail_fast
+build f2: step f1
+build f3: step f2
+build r1: step
+build r2: step
+build all: phony s3 f3 r1 r2
+"""
+        rc, cpu_sec = run_and_measure_cpu(fail_plan, ["all"], b"+")
+        self.assertNotEqual(rc, 0)
+        self.assertLess(
+            cpu_sec,
+            0.25,
+            f"Busy-spin detected while reaping after failure (CPU={cpu_sec:.3f}s)",
+        )
+
+        # 2) Under -l load-average throttling (CanRunMore() == 0), Ninja waits
+        # for the active command without spinning on idle FIFO tokens.
+        load_plan = """
+rule slow_ok
+    command = sleep 0.4 && touch $out
+
+build a: slow_ok
+build b: slow_ok
+build all: phony a b
+"""
+        rc, cpu_sec = run_and_measure_cpu(load_plan, ["-l", "0.0001", "all"], b"+++")
+        self.assertEqual(rc, 0)
+        self.assertLess(
+            cpu_sec,
+            0.25,
+            f"Busy-spin detected under -l throttling (CPU={cpu_sec:.3f}s)",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

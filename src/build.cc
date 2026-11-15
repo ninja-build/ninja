@@ -775,8 +775,12 @@ ExitStatus Builder::Build(string* err) {
     // See if we can reap any finished commands.
     if (pending_commands) {
       // Tell command runner that if jobserver tokens become available while
-      // waiting, it should notify us - but only if we have more work to do.
-      const bool watch_jobserver = plan_.work_ready();
+      // waiting, it should notify us - but only if we have ready work and can
+      // actually start another command on the next iteration (otherwise idle
+      // tokens in the FIFO would cause a busy-spin).
+      const bool watch_jobserver = failures_allowed > 0 &&
+                                   plan_.work_ready() &&
+                                   command_runner_->CanRunMore() > 0;
       BuildResult result =
           command_runner_->WaitForCommandOrJobserverToken(watch_jobserver);
 

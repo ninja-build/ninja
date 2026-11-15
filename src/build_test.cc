@@ -526,12 +526,23 @@ struct FakeCommandRunner : public CommandRunner {
   virtual size_t CanRunMore() const;
   virtual bool StartCommand(Edge* edge);
   virtual BuildResult WaitForCommand();
+  virtual BuildResult WaitForCommandOrJobserverToken(bool watch_jobserver) {
+    last_watch_jobserver_ = watch_jobserver;
+    watch_jobserver_history_.push_back(watch_jobserver);
+    if (watch_jobserver && jobserver_token_available_) {
+      return BuildResult::JobserverTokenAvailable{};
+    }
+    return WaitForCommand();
+  }
   virtual vector<Edge*> GetActiveEdges();
   virtual void Abort();
 
   vector<string> commands_ran_;
   vector<Edge*> active_edges_;
   size_t max_active_edges_;
+  bool jobserver_token_available_ = false;
+  bool last_watch_jobserver_ = false;
+  vector<bool> watch_jobserver_history_;
   VirtualFileSystem* fs_;
 };
 
@@ -4636,4 +4647,111 @@ build d: cp c
   fs_.ReadFile("d.d", &content, &err);
   EXPECT_EQ("b: X", content);
   EXPECT_EQ("", err);
+}
+
+TEST_F(BuildTest, WatchJobserverDisabledWhenCannotStartCommands) {
+  // 4 independent ready targets. Allow 2 to start initially while 2 remain
+  // queued in Plan::ready_, with a jobserver token simulated as available.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule fail
+  command = fail
+build out1: cat in1
+build out2: fail in1
+build out3: cat in1
+build out4: cat in1
+)ninja"));
+
+  command_runner_.max_active_edges_ = 2;
+  command_runner_.jobserver_token_available_ = true;
+
+  string err;
+  EXPECT_TRUE(builder_.AddTarget("out1", &err));
+  EXPECT_TRUE(builder_.AddTarget("out2", &err));
+  EXPECT_TRUE(builder_.AddTarget("out3", &err));
+  EXPECT_TRUE(builder_.AddTarget("out4", &err));
+
+  // max_active_edges_ == 2 means CanRunMore() == 0 once out1 and out2 are
+  // active (simulating e.g. -l load-average throttling), and after out2 fails,
+  // failures_allowed drops to 0 while reaping out1. In both iterations,
+  // watch_jobserver must be false so WaitForCommandOrJobserverToken() does not
+  // spin returning JobserverTokenAvailable forever.
+  EXPECT_EQ(ExitFailure, builder_.Build(&err));
+  EXPECT_EQ("subcommand failed", err);
+  ASSERT_EQ(2u, command_runner_.watch_jobserver_history_.size());
+  EXPECT_FALSE(command_runner_.watch_jobserver_history_[0]);
+  EXPECT_FALSE(command_runner_.watch_jobserver_history_[1]);
+}
+
+TEST_F(BuildTest, WatchJobserverDisabledAfterFailureEvenWithCapacity) {
+  // Simulate jobserver mode: CanRunMore() remains > 0 (INT_MAX in
+  // RealCommandRunner), while Plan::FindWork() stops after 2 edges because the
+  // jobserver pool has no more tokens. Once fast_fail finishes and fails, its
+  // token returns to the pool (failures_allowed == 0) while slow_ok is still
+  // running and queued_ready remains in Plan::ready_.
+  ASSERT_NO_FATAL_FAILURE(AssertParse(&state_, R"ninja(
+rule fail
+  command = fail
+build a_slow_ok: cat in1
+build b_fast_fail: fail in1
+build c_queued_ready: cat in1
+)ninja"));
+
+  struct LimitedJobserverClient : public Jobserver::Client {
+    Jobserver::Slot TryAcquire() override {
+      if (tokens_ == 0)
+        return Jobserver::Slot();
+      --tokens_;
+      return Jobserver::Slot::CreateExplicit('+');
+    }
+    void Release(Jobserver::Slot slot) override {
+      if (slot.IsValid())
+        ++tokens_;
+    }
+    int tokens_ = 2;
+  };
+
+  command_runner_.max_active_edges_ = 10;
+  command_runner_.jobserver_token_available_ = true;
+  builder_.SetJobserverClient(
+      std::unique_ptr<Jobserver::Client>(new LimitedJobserverClient()));
+
+  string err;
+  // EdgePriorityLess orders equal-critical-path edges lexicographically by
+  // first output path, so a_slow_ok and b_fast_fail start in the 2 available
+  // slots (with FakeCommandRunner reaping b_fast_fail first), while
+  // c_queued_ready remains in Plan::ready_.
+  EXPECT_TRUE(builder_.AddTarget("a_slow_ok", &err));
+  EXPECT_TRUE(builder_.AddTarget("b_fast_fail", &err));
+  EXPECT_TRUE(builder_.AddTarget("c_queued_ready", &err));
+
+  // Wait #1: slow_ok and fast_fail are running, queued_ready is in ready_,
+  // failures_allowed == 1, CanRunMore() > 0 -> watch_jobserver is true. We
+  // turn jobserver_token_available_ on right after Wait #1 reaps fast_fail
+  // (returning its token to the pool!).
+  command_runner_.jobserver_token_available_ = false;
+  struct FailReturnsTokenRunner : public FakeCommandRunner {
+    explicit FailReturnsTokenRunner(VirtualFileSystem* fs)
+        : FakeCommandRunner(fs) {
+      max_active_edges_ = 10;
+    }
+    BuildResult WaitForCommand() override {
+      BuildResult res = FakeCommandRunner::WaitForCommand();
+      // Simulates the failed edge releasing its token back to the FIFO.
+      jobserver_token_available_ = true;
+      return res;
+    }
+  } runner(&fs_);
+
+  builder_.command_runner_.release();
+  builder_.command_runner_.reset(&runner);
+  SafeRelease safe_release(&builder_);
+
+  EXPECT_EQ(ExitFailure, builder_.Build(&err));
+  EXPECT_EQ("subcommand failed", err);
+  ASSERT_EQ(2u, runner.watch_jobserver_history_.size());
+  // First wait: ready work exists, failures_allowed == 1, CanRunMore() > 0.
+  EXPECT_TRUE(runner.watch_jobserver_history_[0]);
+  // Second wait: fast_fail failed (failures_allowed == 0) and returned its
+  // token while slow_ok is still running. Must NOT watch jobserver or spin!
+  EXPECT_FALSE(runner.watch_jobserver_history_[1]);
 }
