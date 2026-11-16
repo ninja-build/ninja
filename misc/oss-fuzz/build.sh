@@ -20,10 +20,17 @@ cmake --build build-cmake
 
 cd $SRC/ninja/misc
 
+# Compile each fuzzer
+for fuzzer in depfile_fuzzer build_log_fuzzer deps_log_fuzzer util_fuzzer graph_fuzzer; do
+    $CXX $CXXFLAGS -fdiagnostics-color -I/src/ninja/src -o ${fuzzer}.o -c ${fuzzer}.cc
+done
 $CXX $CXXFLAGS -fdiagnostics-color -I/src/ninja/src -o fuzzer.o -c manifest_fuzzer.cc
 
 find .. -name "*.o" -exec ar rcs fuzz_lib.a {} \;
 
+for fuzzer in depfile_fuzzer build_log_fuzzer deps_log_fuzzer util_fuzzer graph_fuzzer; do
+    $CXX $CXXFLAGS $LIB_FUZZING_ENGINE ${fuzzer}.o -o $OUT/${fuzzer} fuzz_lib.a
+done
 $CXX $CXXFLAGS $LIB_FUZZING_ENGINE fuzzer.o -o $OUT/fuzzer fuzz_lib.a
 
 zip $OUT/fuzzer_seed_corpus.zip $SRC/sample_ninja_build
