@@ -14,6 +14,7 @@
 #pragma once
 
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <queue>
 
@@ -107,6 +108,8 @@ struct StatusPrinter : Status {
   /// Parsed `--status` format, evaluated against status variables on each
   /// update. Null when `--status` was not supplied.
   std::unique_ptr<EvalString> status_eval_;
+
+  std::deque<const Edge*> edges_;
 
   template <size_t S>
   void SnprintfRate(double rate, char (&buf)[S], const char* format) const {
