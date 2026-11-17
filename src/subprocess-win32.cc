@@ -228,6 +228,14 @@ SubprocessSet::~SubprocessSet() {
   CloseHandle(ioport_);
 }
 
+// Completion key posted by NotifyJobserver(), never a valid Subprocess*.
+static Subprocess* const kJobserverWake = reinterpret_cast<Subprocess*>(1);
+
+void SubprocessSet::NotifyJobserver() {
+  // Ignore failures: the port may be gone if the build is shutting down.
+  (void)PostQueuedCompletionStatus(ioport_, 0, (ULONG_PTR)kJobserverWake, NULL);
+}
+
 BOOL WINAPI SubprocessSet::NotifyInterrupted(DWORD dwCtrlType) {
   if (dwCtrlType == CTRL_C_EVENT || dwCtrlType == CTRL_BREAK_EVENT) {
     if (!PostQueuedCompletionStatus(ioport_, 0, 0, NULL))
@@ -266,6 +274,9 @@ SubprocessSet::WorkResult SubprocessSet::DoWork() {
   if (!subproc) // A NULL subproc indicates that we were interrupted and is
                 // delivered by NotifyInterrupted above.
     return WorkResult::Interrupted;
+
+  if (subproc == kJobserverWake) // Delivered by NotifyJobserver() above.
+    return WorkResult::JobserverTokenAvailable;
 
   subproc->OnPipeReady();
 

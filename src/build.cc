@@ -814,9 +814,6 @@ ExitStatus Builder::Build(string* err) {
             failures_allowed--;
         }
       } else if (result.jobserver_token_available()) {
-        // Note: currently we only react to jobserver tokens availability
-        // on non-Windows platforms.
-
         // Jobserver token is available; start main loop over to try to
         // acquire jobserver token.
         continue;
