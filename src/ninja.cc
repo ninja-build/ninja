@@ -1023,8 +1023,15 @@ int NinjaMain::ToolClean(const Options* options, int argc, char* argv[]) {
   if (argc >= 1) {
     if (clean_rules)
       return cleaner.CleanRules(argc, argv);
-    else
-      return cleaner.CleanTargets(argc, argv);
+    else {
+      vector<Node*> targets;
+      string err;
+      if (!CollectTargetsFromArgs(argc, argv, &targets, &err)) {
+        Error("%s", err.c_str());
+        return 1;
+      }
+      return cleaner.CleanTargets(targets);
+    }
   } else {
     return cleaner.CleanAll(generator);
   }

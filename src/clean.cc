@@ -198,6 +198,19 @@ int Cleaner::CleanTarget(const char* target) {
   return status_;
 }
 
+int Cleaner::CleanTargets(const vector<Node*>& targets) {
+  Reset();
+  PrintHeader();
+  LoadDyndeps();
+  for (Node* target : targets) {
+    if (IsVerbose())
+      printf("Target %s\n", target->path().c_str());
+    DoCleanTarget(target);
+  }
+  PrintFooter();
+  return status_;
+}
+
 int Cleaner::CleanTargets(int target_count, char* targets[]) {
   Reset();
   PrintHeader();
