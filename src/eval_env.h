@@ -37,6 +37,8 @@ struct EvalString {
   /// @return The evaluated string with variable expanded using value found in
   ///         environment @a env.
   std::string Evaluate(Env* env) const;
+  /// Same, but into |result|, which is cleared first.
+  void Evaluate(Env* env, std::string* result) const;
 
   /// @return The string with variables not expanded.
   std::string Unparse() const;

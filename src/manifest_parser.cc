@@ -217,39 +217,39 @@ bool ManifestParser::ParseDefault(string* err) {
   return ExpectToken(Lexer::NEWLINE, err);
 }
 
-bool ManifestParser::ParseEdge(string* err) {
-  ins_.clear();
-  outs_.clear();
-  validations_.clear();
-
-  {
-    EvalString out;
-    if (!lexer_.ReadPath(&out, err))
-      return false;
-    while (!out.empty()) {
-      outs_.push_back(std::move(out));
-
-      out.Clear();
-      if (!lexer_.ReadPath(&out, err))
-        return false;
-    }
+int ManifestParser::ReadPaths(size_t* n, string* err) {
+  int count = 0;
+  for (;;) {
+    if (*n == paths_.size())
+      paths_.emplace_back();
+    else
+      paths_[*n].Clear();
+    if (!lexer_.ReadPath(&paths_[*n], err))
+      return -1;
+    if (paths_[*n].empty())
+      return count;
+    ++*n;
+    ++count;
   }
+}
 
-  // Add all implicit outs, counting how many as we go.
+bool ManifestParser::ParseEdge(string* err) {
+  size_t n = 0;
+
+  int explicit_outs = ReadPaths(&n, err);
+  if (explicit_outs < 0)
+    return false;
+
+  // Add all implicit outs.
   int implicit_outs = 0;
   if (lexer_.PeekToken(Lexer::PIPE)) {
-    for (;;) {
-      EvalString out;
-      if (!lexer_.ReadPath(&out, err))
-        return false;
-      if (out.empty())
-        break;
-      outs_.push_back(std::move(out));
-      ++implicit_outs;
-    }
+    implicit_outs = ReadPaths(&n, err);
+    if (implicit_outs < 0)
+      return false;
   }
+  size_t num_outs = n;
 
-  if (outs_.empty())
+  if (num_outs == 0)
     return lexer_.Error("expected path", err);
 
   if (!ExpectToken(Lexer::COLON, err))
@@ -263,55 +263,31 @@ bool ManifestParser::ParseEdge(string* err) {
   if (!rule)
     return lexer_.Error("unknown build rule '" + rule_name + "'", err);
 
-  for (;;) {
-    // XXX should we require one path here?
-    EvalString in;
-    if (!lexer_.ReadPath(&in, err))
-      return false;
-    if (in.empty())
-      break;
-    ins_.push_back(std::move(in));
-  }
+  // XXX should we require one path here?
+  if (ReadPaths(&n, err) < 0)
+    return false;
 
-  // Add all implicit deps, counting how many as we go.
+  // Add all implicit deps.
   int implicit = 0;
   if (lexer_.PeekToken(Lexer::PIPE)) {
-    for (;;) {
-      EvalString in;
-      if (!lexer_.ReadPath(&in, err))
-        return false;
-      if (in.empty())
-        break;
-      ins_.push_back(std::move(in));
-      ++implicit;
-    }
+    implicit = ReadPaths(&n, err);
+    if (implicit < 0)
+      return false;
   }
 
-  // Add all order-only deps, counting how many as we go.
+  // Add all order-only deps.
   int order_only = 0;
   if (lexer_.PeekToken(Lexer::PIPE2)) {
-    for (;;) {
-      EvalString in;
-      if (!lexer_.ReadPath(&in, err))
-        return false;
-      if (in.empty())
-        break;
-      ins_.push_back(std::move(in));
-      ++order_only;
-    }
+    order_only = ReadPaths(&n, err);
+    if (order_only < 0)
+      return false;
   }
+  size_t num_ins = n - num_outs;
 
-  // Add all validations, counting how many as we go.
-  if (lexer_.PeekToken(Lexer::PIPEAT)) {
-    for (;;) {
-      EvalString validation;
-      if (!lexer_.ReadPath(&validation, err))
-        return false;
-      if (validation.empty())
-        break;
-      validations_.push_back(std::move(validation));
-    }
-  }
+  // Add all validations.
+  if (lexer_.PeekToken(Lexer::PIPEAT) && ReadPaths(&n, err) < 0)
+    return false;
+  size_t num_validations = n - num_outs - num_ins;
 
   if (!ExpectToken(Lexer::NEWLINE, err))
     return false;
@@ -340,12 +316,14 @@ bool ManifestParser::ParseEdge(string* err) {
     edge->pool_ = pool;
   }
 
-  edge->outputs_.reserve(outs_.size());
-  for (size_t i = 0, e = outs_.size(); i != e; ++i) {
-    string path = outs_[i].Evaluate(env);
+  string path;
+  uint64_t slash_bits;
+
+  edge->outputs_.reserve(num_outs);
+  for (size_t i = 0; i < num_outs; ++i) {
+    paths_[i].Evaluate(env, &path);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
     if (!state_->AddOut(edge, path, slash_bits, err)) {
       lexer_.Error(std::string(*err), err);
@@ -362,25 +340,22 @@ bool ManifestParser::ParseEdge(string* err) {
   }
   edge->implicit_outs_ = implicit_outs;
 
-  edge->inputs_.reserve(ins_.size());
-  for (vector<EvalString>::iterator i = ins_.begin(); i != ins_.end(); ++i) {
-    string path = i->Evaluate(env);
+  edge->inputs_.reserve(num_ins);
+  for (size_t i = num_outs; i < num_outs + num_ins; ++i) {
+    paths_[i].Evaluate(env, &path);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
     state_->AddIn(edge, path, slash_bits);
   }
   edge->implicit_deps_ = implicit;
   edge->order_only_deps_ = order_only;
 
-  edge->validations_.reserve(validations_.size());
-  for (std::vector<EvalString>::iterator v = validations_.begin();
-      v != validations_.end(); ++v) {
-    string path = v->Evaluate(env);
+  edge->validations_.reserve(num_validations);
+  for (size_t i = num_outs + num_ins; i < n; ++i) {
+    paths_[i].Evaluate(env, &path);
     if (path.empty())
       return lexer_.Error("empty path", err);
-    uint64_t slash_bits;
     CanonicalizePath(&path, &slash_bits);
     state_->AddValidation(edge, path, slash_bits);
   }
@@ -410,7 +385,6 @@ bool ManifestParser::ParseEdge(string* err) {
   // be one of our manifest-specified inputs.
   string dyndep = edge->GetUnescapedDyndep();
   if (!dyndep.empty()) {
-    uint64_t slash_bits;
     CanonicalizePath(&dyndep, &slash_bits);
     edge->dyndep_ = state_->GetNode(dyndep, slash_bits);
     edge->dyndep_->set_dyndep_pending(true);

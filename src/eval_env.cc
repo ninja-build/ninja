@@ -109,18 +109,24 @@ std::string BindingEnv::LookupWithFallback(StringPiece var,
 }
 
 string EvalString::Evaluate(Env* env) const {
+  string result;
+  Evaluate(env, &result);
+  return result;
+}
+
+void EvalString::Evaluate(Env* env, string* result) const {
   if (parsed_.empty()) {
-    return single_token_;
+    result->assign(single_token_);
+    return;
   }
 
-  string result;
+  result->clear();
   for (TokenList::const_iterator i = parsed_.begin(); i != parsed_.end(); ++i) {
     if (i->second == RAW)
-      result.append(i->first);
+      result->append(i->first);
     else
-      result.append(env->LookupVariable(i->first));
+      result->append(env->LookupVariable(i->first));
   }
-  return result;
 }
 
 void EvalString::AddText(StringPiece text) {
