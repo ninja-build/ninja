@@ -404,11 +404,19 @@ SubprocessSet::WorkResult SubprocessSet::DoWork() {
     ++i;
   }
 
-  // Jobserver token is available. Make sure that we only react
-  // to jobserver tokens if no other work was done
-  const bool no_work = work_result == WorkResult::NoWork;
-  if (jobserver_fd_ >= 0 && fds[jobserver_idx].revents && no_work) {
-    work_result = WorkResult::JobserverTokenAvailable;
+  // Jobserver token is available. Make sure that we only react to readable
+  // token data and only if no other work was done. If the descriptor hung up
+  // or errored without readable data, stop polling it to avoid spinning in
+  // WaitForCommandOrJobserverToken()'s DoWork() loop.
+  if (jobserver_fd_ >= 0) {
+    const short js_revents = fds[jobserver_idx].revents;
+    if ((js_revents & (POLLIN | POLLPRI)) != 0) {
+      if (work_result == WorkResult::NoWork) {
+        work_result = WorkResult::JobserverTokenAvailable;
+      }
+    } else if ((js_revents & (POLLHUP | POLLERR | POLLNVAL)) != 0) {
+      jobserver_fd_ = -1;
+    }
   }
 
   return IsInterrupted() ? WorkResult::Interrupted : work_result;
@@ -431,10 +439,12 @@ SubprocessSet::WorkResult SubprocessSet::DoWork() {
     }
   }
 
-  if (jobserver_fd_ >= 0) {
+  const bool monitor_jobserver =
+      (jobserver_fd_ >= 0 && jobserver_fd_ < FD_SETSIZE);
+  if (monitor_jobserver) {
     FD_SET(jobserver_fd_, &set);
-    if (nfds < jobserver_fd_+1)
-      nfds = jobserver_fd_+1;
+    if (nfds < jobserver_fd_ + 1)
+      nfds = jobserver_fd_ + 1;
   }
 
   interrupted_ = 0;
@@ -474,7 +484,7 @@ SubprocessSet::WorkResult SubprocessSet::DoWork() {
   // Jobserver token is available. Make sure that we only react
   // to jobserver tokens if no other work was done
   const bool no_work = work_result == WorkResult::NoWork;
-  if (jobserver_fd_ >= 0 && FD_ISSET(jobserver_fd_, &set) && no_work) {
+  if (monitor_jobserver && FD_ISSET(jobserver_fd_, &set) && no_work) {
     work_result = WorkResult::JobserverTokenAvailable;
   }
 

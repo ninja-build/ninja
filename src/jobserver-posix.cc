@@ -49,6 +49,8 @@ class PosixJobserverClient : public Jobserver::Client {
       has_implicit_slot_ = false;
       return Jobserver::Slot::CreateImplicit();
     }
+    if (read_fd_ < 0)
+      return Jobserver::Slot();
     uint8_t slot_char = '\0';
     ssize_t ret;
     do {
@@ -56,6 +58,12 @@ class PosixJobserverClient : public Jobserver::Client {
     } while (ret < 0 && errno == EINTR);
     if (ret == 1) {
       return Jobserver::Slot::CreateExplicit(slot_char);
+    }
+    if (ret == 0) {
+      // Unexpected EOF (all writers closed): disable future polling to avoid
+      // busy-spinning on POLLHUP/EOF.
+      ::close(read_fd_);
+      read_fd_ = -1;
     }
     return Jobserver::Slot();
   }

@@ -399,4 +399,37 @@ TEST(Jobserver, PosixFifoClientWithWrongPath) {
   EXPECT_FALSE(error.empty());
   EXPECT_EQ("Empty fifo path", error);
 }
+
+TEST(Jobserver, PosixCharDeviceEofDisablesJobserverFd) {
+  // Commit 71cb2a4 permits character devices such as /dev/null (commonly used
+  // via --jobserver-auth=fifo:/dev/null to serialize sub-builds to 1 implicit
+  // slot). /dev/null always polls readable (POLLIN) while read() returns 0
+  // (EOF), so TryAcquire() must invalidate GetJobserverFD() on EOF to prevent
+  // DoWork() from busy-spinning on /dev/null.
+  Jobserver::Config js_config;
+  js_config.mode = Jobserver::Config::kModePosixFifo;
+  js_config.path = "/dev/null";
+
+  std::string err;
+  std::unique_ptr<Jobserver::Client> client =
+      Jobserver::Client::Create(js_config, &err);
+  ASSERT_TRUE(client.get()) << err;
+  EXPECT_GE(client->GetJobserverFD(), 0);
+
+  // First acquire consumes the implicit slot.
+  Jobserver::Slot implicit_slot = client->TryAcquire();
+  EXPECT_TRUE(implicit_slot.IsValid());
+  EXPECT_TRUE(implicit_slot.IsImplicit());
+
+  // Second acquire hits EOF (0 bytes) on /dev/null and disables polling.
+  Jobserver::Slot explicit_slot = client->TryAcquire();
+  EXPECT_FALSE(explicit_slot.IsValid());
+  EXPECT_EQ(-1, client->GetJobserverFD());
+
+  // Implicit slot still works across release/re-acquire cycles.
+  client->Release(std::move(implicit_slot));
+  implicit_slot = client->TryAcquire();
+  EXPECT_TRUE(implicit_slot.IsValid());
+  EXPECT_TRUE(implicit_slot.IsImplicit());
+}
 #endif  // !_WIN32
