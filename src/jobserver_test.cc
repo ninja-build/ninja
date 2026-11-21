@@ -315,6 +315,67 @@ TEST(Jobserver, Win32SemaphoreClient) {
   slot = client->TryAcquire();
   EXPECT_FALSE(slot.IsValid());
 }
+
+static volatile LONG g_notified = 0;
+static void NotifyForTest() { ::InterlockedIncrement(&g_notified); }
+
+static bool WaitNotified(LONG count) {
+  for (int i = 0; i < 500 && g_notified < count; ++i)
+    ::Sleep(10);
+  return g_notified >= count;
+}
+
+TEST(Jobserver, Win32SemaphoreWatch) {
+  const char kSemaphoreName[] = "ninja_test_jobserver_semaphore_watch";
+  ScopedSemaphoreHandle handle(
+      ::CreateSemaphoreA(NULL, 0, 10, kSemaphoreName));
+  ASSERT_TRUE(handle.get()) << GetLastErrorString();
+
+  Jobserver::Config config;
+  config.mode = Jobserver::Config::kModeWin32Semaphore;
+  config.path = kSemaphoreName;
+  std::string error;
+  std::unique_ptr<Jobserver::Client> client =
+      Jobserver::Client::Create(config, &error);
+  ASSERT_TRUE(client.get()) << error;
+
+  // Take the implicit slot, the pool is empty.
+  Jobserver::Slot implicit_slot = client->TryAcquire();
+  EXPECT_TRUE(implicit_slot.IsImplicit());
+  EXPECT_FALSE(client->TryAcquire().IsValid());
+
+  // A slot offered while watching wakes up the client and is handed out
+  // by TryAcquire().
+  LONG base = g_notified;
+  client->WatchForSlot(&NotifyForTest);
+  ::Sleep(50);
+  EXPECT_EQ(base, g_notified);
+  ASSERT_TRUE(::ReleaseSemaphore(handle.get(), 1, NULL));
+  ASSERT_TRUE(WaitNotified(base + 1));
+  Jobserver::Slot slot = client->TryAcquire();
+  EXPECT_TRUE(slot.IsExplicit());
+  EXPECT_FALSE(client->TryAcquire().IsValid());
+  EXPECT_EQ(static_cast<DWORD>(WAIT_TIMEOUT),
+            ::WaitForSingleObject(handle.get(), 0));
+
+  // A slot acquired but not used is given back by StopWatching().
+  client->WatchForSlot(&NotifyForTest);
+  ASSERT_TRUE(::ReleaseSemaphore(handle.get(), 1, NULL));
+  ASSERT_TRUE(WaitNotified(base + 2));
+  client->StopWatching();
+  EXPECT_EQ(static_cast<DWORD>(WAIT_OBJECT_0),
+            ::WaitForSingleObject(handle.get(), 0));
+
+  // StopWatching() while waiting does not hang (the pool is empty again).
+  client->WatchForSlot(&NotifyForTest);
+  ::Sleep(50);
+  client->StopWatching();
+  EXPECT_EQ(static_cast<DWORD>(WAIT_TIMEOUT),
+            ::WaitForSingleObject(handle.get(), 0));
+  ASSERT_TRUE(::ReleaseSemaphore(handle.get(), 1, NULL));
+  client->Release(std::move(slot));
+  client->Release(std::move(implicit_slot));
+}
 #else   // !_WIN32
 TEST(Jobserver, PosixFifoClient) {
   ScopedTempDir temp_dir;

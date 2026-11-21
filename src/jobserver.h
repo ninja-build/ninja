@@ -211,6 +211,16 @@ struct Jobserver {
     /// Return the file descriptor that can be used to monitor
     /// jobserver token availability via ppoll/pselect().
     virtual int GetJobserverFD() const { return -1; }
+#else
+    /// Ask the client to wait for a slot in the background (without
+    /// polling) and to call |notify| from another thread once one is
+    /// available. That slot is then returned by the next TryAcquire().
+    /// Does nothing if a request is already pending.
+    virtual void WatchForSlot(void (*notify)()) {}
+
+    /// Cancel any pending WatchForSlot() request, and release the slot it
+    /// may already have acquired.
+    virtual void StopWatching() {}
 #endif
 
     /// Create a new Client instance from a given configuration. On failure,

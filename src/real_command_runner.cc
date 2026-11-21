@@ -22,6 +22,12 @@ struct RealCommandRunner : public CommandRunner {
   explicit RealCommandRunner(const BuildConfig& config,
                              Jobserver::Client* jobserver)
       : config_(config), jobserver_(jobserver) {}
+#ifdef _WIN32
+  ~RealCommandRunner() {
+    if (jobserver_)
+      jobserver_->StopWatching();
+  }
+#endif
   size_t CanRunMore() const override;
   bool StartCommand(Edge* edge) override;
   BuildResult WaitForCommand() override;
@@ -53,6 +59,10 @@ std::vector<Edge*> RealCommandRunner::GetActiveEdges() {
 }
 
 void RealCommandRunner::Abort() {
+#ifdef _WIN32
+  if (jobserver_)
+    jobserver_->StopWatching();
+#endif
   ClearJobTokens();
   subprocs_.Clear();
 }
@@ -109,6 +119,11 @@ BuildResult RealCommandRunner::WaitForCommandOrJobserverToken(
   } else {
     subprocs_.SetJobserverFD(-1);
   }
+#else
+  // Windows cannot wait for a jobserver token and a subprocess together:
+  // have a helper thread wait for the token and wake up DoWork().
+  if (jobserver_ && watch_jobserver)
+    jobserver_->WatchForSlot(&SubprocessSet::NotifyJobserver);
 #endif
 
   SubprocessSet::WorkResult work_result = SubprocessSet::WorkResult::NoWork;

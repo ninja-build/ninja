@@ -15,6 +15,8 @@
 #include <assert.h>
 #include <windows.h>
 
+#include <atomic>
+
 #include "jobserver.h"
 #include "util.h"
 
@@ -27,6 +29,7 @@ namespace {
 class Win32JobserverClient : public Jobserver::Client {
  public:
   virtual ~Win32JobserverClient() {
+    StopWatching();
     // NOTE: OpenSemaphore() returns NULL on failure.
     if (IsValid()) {
       ::CloseHandle(handle_);
@@ -38,6 +41,12 @@ class Win32JobserverClient : public Jobserver::Client {
       if (has_implicit_slot_) {
         has_implicit_slot_ = false;
         return Jobserver::Slot::CreateImplicit();
+      }
+
+      // A slot acquired by the watching thread comes first.
+      if (watch_state_ == kWatchHeld) {
+        watch_state_ = kWatchIdle;
+        return Jobserver::Slot::CreateExplicit(1);
       }
 
       DWORD ret = ::WaitForSingleObject(handle_, 0);
@@ -63,6 +72,36 @@ class Win32JobserverClient : public Jobserver::Client {
     (void)::ReleaseSemaphore(handle_, 1, NULL);
   }
 
+  void WatchForSlot(void (*notify)()) override {
+    if (!IsValid() || watch_state_ != kWatchIdle)
+      return;
+    if (!cancel_event_) {
+      cancel_event_ = ::CreateEventA(NULL, TRUE, FALSE, NULL);
+      if (!cancel_event_)
+        return;
+    }
+    JoinThread();
+    notify_ = notify;
+    watch_state_ = kWatchWaiting;
+    thread_ = ::CreateThread(NULL, 0, WatchThreadProc, this, 0, NULL);
+    if (!thread_)
+      watch_state_ = kWatchIdle;
+  }
+
+  void StopWatching() override {
+    if (watch_state_ == kWatchWaiting)
+      ::SetEvent(cancel_event_);
+    JoinThread();
+    if (cancel_event_) {
+      ::CloseHandle(cancel_event_);
+      cancel_event_ = NULL;
+    }
+    if (watch_state_ == kWatchHeld) {
+      watch_state_ = kWatchIdle;
+      (void)::ReleaseSemaphore(handle_, 1, NULL);
+    }
+  }
+
   bool InitWithSemaphore(const std::string& name, std::string* error) {
     handle_ = ::OpenSemaphoreA(SYNCHRONIZE | SEMAPHORE_MODIFY_STATE, FALSE,
                                name.c_str());
@@ -78,6 +117,38 @@ class Win32JobserverClient : public Jobserver::Client {
     // NOTE: OpenSemaphore() returns NULL on failure, not INVALID_HANDLE_VALUE.
     return handle_ != NULL;
   }
+
+  // Wait for a slot (or for cancel_event_) in the background, and wake up
+  // the main thread with notify_ once a slot has been acquired.
+  static DWORD WINAPI WatchThreadProc(LPVOID param) {
+    Win32JobserverClient* self = static_cast<Win32JobserverClient*>(param);
+    HANDLE handles[2] = { self->handle_, self->cancel_event_ };
+    if (::WaitForMultipleObjects(2, handles, FALSE, INFINITE) ==
+        WAIT_OBJECT_0) {
+      self->watch_state_ = kWatchHeld;
+      self->notify_();
+    } else {
+      self->watch_state_ = kWatchIdle;
+    }
+    return 0;
+  }
+
+  void JoinThread() {
+    if (thread_) {
+      ::WaitForSingleObject(thread_, INFINITE);
+      ::CloseHandle(thread_);
+      thread_ = NULL;
+    }
+  }
+
+  enum { kWatchIdle, kWatchWaiting, kWatchHeld };
+
+  // State of the watching thread: kWatchHeld means that it acquired a slot
+  // that TryAcquire() has not handed out yet.
+  std::atomic<int> watch_state_{kWatchIdle};
+  HANDLE thread_ = NULL;
+  HANDLE cancel_event_ = NULL;
+  void (*notify_)() = NULL;
 
   // Set to true if the implicit slot has not been acquired yet.
   bool has_implicit_slot_ = true;

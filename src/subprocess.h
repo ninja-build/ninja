@@ -105,7 +105,8 @@ struct SubprocessSet {
   // The result of DoWork(), in increasing priority order. When several events happen at the same time, the highest value will be reported:
   // NoWork: If there is no work to do, or if ppoll()/pselect() was interrupted by a spurious signal or returned an error.
   // JobserverTokenAvailable: Indicates that a new job slot token is available from the jobserver queue.
-  //   This can only be returned if SetJobserverFD() has been called with a valid file descriptor.
+  //   This can only be returned if SetJobserverFD() has been called with a valid file descriptor
+  //   (on Windows: if NotifyJobserver() has been called).
   // SubprocFinished: Indicates that at least one subprocess completed since the last call.
   // Interrupted: Indicates that a user interrupt (SIGINT, SIGHUP or SIGTERM) has been detected.
   enum class WorkResult {
@@ -128,6 +129,10 @@ struct SubprocessSet {
 #ifdef _WIN32
   static BOOL WINAPI NotifyInterrupted(DWORD dwCtrlType);
   static HANDLE ioport_;
+
+  /// Make DoWork() return WorkResult::JobserverTokenAvailable (see
+  /// Jobserver::Client::WatchForSlot()). Can be called from any thread.
+  static void NotifyJobserver();
 #else
   static void SetInterruptedFlag(int signum);
   static void SigChldHandler(int signo, siginfo_t* info, void* context);
