@@ -365,6 +365,16 @@ void NinjaMain::ParsePreviousElapsedTimes() {
   }
 }
 
+bool IsAbsoluteTargetPath(StringPiece path) {
+#ifdef _WIN32
+  return (path.size() >= 3 && islatinalpha(path[0]) && path[1] == ':' &&
+          path[2] == '/') ||
+         path.substr(0, 2) == "\\\\" || path.substr(0, 2) == "//";
+#else
+  return !path.empty() && path[0] == '/';
+#endif
+}
+
 Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   string path = cpath;
   if (path.empty()) {
@@ -382,6 +392,17 @@ Node* NinjaMain::CollectTarget(const char* cpath, string* err) {
   }
 
   Node* node = state_.LookupNode(path);
+  if (!node && IsAbsoluteTargetPath(path)) {
+    // The manifest may name an absolute command-line target relative to the
+    // working directory. The output need not exist yet.
+    std::string prefix = GetWorkingDirectory();
+    uint64_t unused;
+    CanonicalizePath(&prefix, &unused);
+    if (prefix.back() != '/')
+      prefix += '/';
+    if (path.compare(0, prefix.size(), prefix) == 0)
+      node = state_.LookupNode(StringPiece(path).substr(prefix.size()));
+  }
   if (!node && !build_dir_.empty()) {
     // if 'foo' is not found, try to fallback to $build_dir/foo when build_dir
     // is set in the manifest
