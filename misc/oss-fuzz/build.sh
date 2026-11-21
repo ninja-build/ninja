@@ -21,9 +21,13 @@ cmake --build build-cmake
 cd $SRC/ninja/misc
 
 $CXX $CXXFLAGS -fdiagnostics-color -I/src/ninja/src -o fuzzer.o -c manifest_fuzzer.cc
+$CXX $CXXFLAGS -fdiagnostics-color -I/src/ninja/src -o depfile_parser_fuzzer.o -c oss-fuzz/depfile_parser_fuzzer.cc
 
-find .. -name "*.o" -exec ar rcs fuzz_lib.a {} \;
+# Archive only the library objects (never the harness objects), so each
+# harness links deterministically against exactly one LLVMFuzzerTestOneInput.
+find ../build-cmake -name "*.o" -exec ar rcs fuzz_lib.a {} \;
 
 $CXX $CXXFLAGS $LIB_FUZZING_ENGINE fuzzer.o -o $OUT/fuzzer fuzz_lib.a
+$CXX $CXXFLAGS $LIB_FUZZING_ENGINE depfile_parser_fuzzer.o -o $OUT/depfile_parser_fuzzer fuzz_lib.a
 
 zip $OUT/fuzzer_seed_corpus.zip $SRC/sample_ninja_build
