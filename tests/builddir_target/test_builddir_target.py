@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Integration test for target lookup with builddir fallback."""
+"""Integration tests for command-line target lookup."""
 
 import os
 import shutil
@@ -12,8 +12,6 @@ NINJA_PATH = os.path.abspath("./ninja")
 
 
 class BuilddirTargetTest(unittest.TestCase):
-    """Test that targets can be found via $builddir fallback."""
-
     def setUp(self):
         self.test_dir = tempfile.mkdtemp(prefix="ninja_builddir_target_test_")
         self.original_dir = os.getcwd()
@@ -28,6 +26,34 @@ class BuilddirTargetTest(unittest.TestCase):
             [NINJA_PATH] + list(args), capture_output=True, text=True
         )
         return result
+
+    def test_absolute_target_before_build(self):
+        with open("build.ninja", "w") as f:
+            f.write("rule generate\n  command = echo generating $out\n"
+                    "build sub/output: generate\n")
+
+        result = self._run_ninja("-n", os.path.abspath("sub/output"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("generating", result.stdout)
+
+    def test_exact_absolute_target_takes_priority(self):
+        with open("build.ninja", "w") as f:
+            f.write("root = " + os.getcwd().replace("$", "$$") + "\n"
+                    "build output: phony relative_input\n"
+                    "build $root/output: phony absolute_input\n")
+
+        result = self._run_ninja("-t", "query", os.path.abspath("output"))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("absolute_input", result.stdout)
+        self.assertNotIn("relative_input", result.stdout)
+
+    def test_absolute_target_outside_working_directory(self):
+        with open("build.ninja", "w") as f:
+            f.write("build other: phony\n")
+
+        result = self._run_ninja("-n", os.getcwd() + "-other")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("unknown target", result.stderr)
 
     def test_builddir_fallback(self):
         """Passing 'foo' should build '$builddir/foo' when no literal 'foo' target exists."""
