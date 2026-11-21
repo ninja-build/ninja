@@ -21,9 +21,18 @@ cmake --build build-cmake
 cd $SRC/ninja/misc
 
 $CXX $CXXFLAGS -fdiagnostics-color -I/src/ninja/src -o fuzzer.o -c manifest_fuzzer.cc
+$CXX $CXXFLAGS -fdiagnostics-color -I/src/ninja/src -o deps_log_fuzzer.o -c oss-fuzz/deps_log_fuzzer.cc
 
-find .. -name "*.o" -exec ar rcs fuzz_lib.a {} \;
+# Archive only the library objects (never the harness objects), so each
+# harness links deterministically against exactly one LLVMFuzzerTestOneInput.
+find ../build-cmake -name "*.o" -exec ar rcs fuzz_lib.a {} \;
 
 $CXX $CXXFLAGS $LIB_FUZZING_ENGINE fuzzer.o -o $OUT/fuzzer fuzz_lib.a
+$CXX $CXXFLAGS $LIB_FUZZING_ENGINE deps_log_fuzzer.o -o $OUT/deps_log_fuzzer fuzz_lib.a
+
+# Structurally valid .ninja_deps seeds (magic + version + ~id checksums are
+# mutation-resistant gates; see deps_log_fuzzer.cc).
+python3 oss-fuzz/generate_deps_seeds.py $OUT/deps_log_fuzzer_seed_corpus
+zip -rj $OUT/deps_log_fuzzer_seed_corpus.zip $OUT/deps_log_fuzzer_seed_corpus
 
 zip $OUT/fuzzer_seed_corpus.zip $SRC/sample_ninja_build
