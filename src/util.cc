@@ -882,7 +882,7 @@ int GetProcessorCount() {
     &mask) == 0) {
     return CPU_COUNT(&mask);
   }
-#elif defined(CPU_COUNT)
+#elif defined(CPU_COUNT) && !defined(__HAIKU__)
   cpu_set_t set;
   if (sched_getaffinity(getpid(), sizeof(set), &set) == 0) {
     schedCount = CPU_COUNT(&set);
@@ -981,10 +981,6 @@ double GetLoadAverage() {
   if (sysinfo(&si) != 0)
     return -0.0f;
   return 1.0 / (1 << SI_LOAD_SHIFT) * si.loads[0];
-}
-#elif defined(__HAIKU__)
-double GetLoadAverage() {
-    return -0.0f;
 }
 #else
 double GetLoadAverage() {

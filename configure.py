@@ -65,12 +65,14 @@ class Platform(object):
             self._platform = 'os400'
         elif self._platform.startswith('dragonfly'):
             self._platform = 'dragonfly'
+        elif self._platform.startswith('haiku'):
+            self._platform = 'haiku'
 
     @staticmethod
     def known_platforms() -> List[str]:
       return ['linux', 'darwin', 'freebsd', 'openbsd', 'solaris', 'sunos5',
               'mingw', 'msvc', 'gnukfreebsd', 'bitrig', 'netbsd', 'aix',
-              'dragonfly']
+              'dragonfly', 'haiku']
 
     def platform(self) -> str:
         return self._platform  # type: ignore # Incompatible return value type
@@ -99,6 +101,9 @@ class Platform(object):
 
     def is_aix(self) -> bool:
         return self._platform == 'aix'
+
+    def is_haiku(self) -> bool:
+        return self._platform == 'haiku'
 
     def is_os400_pase(self) -> bool:
         return self._platform == 'os400' or os.uname().sysname.startswith('OS400')  # type: ignore # Module has no attribute "uname"
@@ -393,6 +398,8 @@ else:
         # printf formats for int64_t, uint64_t; large file support
         cflags.append('-D__STDC_FORMAT_MACROS')
         cflags.append('-D_LARGE_FILES')
+    if platform.is_haiku():
+        ldflags.append('-lbsd')
 
 
 libs = []
