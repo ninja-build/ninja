@@ -377,6 +377,39 @@ ninja: build stopped: subcommand failed.
         self.assertEqual(run('', pipe=True), 'ninja: no work to do.\n')
         self.assertEqual(run('', flags='--quiet'), '')
 
+    def test_keep_going_flag(self) -> None:
+        plan = '''\
+            rule fail
+              command = exit 1
+
+            build out1: fail
+            build out2: fail
+            build out3: fail
+            default out1 out2 out3
+            '''
+        with self.assertRaises(subprocess.CalledProcessError) as cm:
+            run(plan, flags='-j1 -k2', pipe=True, print_err_output=False)
+
+        self.assertEqual(cm.exception.returncode, 1)
+        self.assertEqual(cm.exception.cooked_output.count('FAILED:'), 2)
+        self.assertIn('ninja: build stopped: subcommands failed.\n',
+                      cm.exception.cooked_output)
+
+    def test_load_limit(self) -> None:
+        plan = '''\
+            rule record
+              command = printf start >> order && sleep 0.1 && printf end >> order && touch $out
+
+            build out1: record
+            build out2: record
+            build out3: record
+            default out1 out2 out3
+            '''
+        with BuildDir(plan) as b:
+            b.run(flags='-j3 -l0.1', pipe=True)
+            with open(os.path.join(b.path, 'order')) as order:
+                self.assertEqual(order.read(), 'startendstartendstartend')
+
     def test_ninja_status_default(self) -> None:
         'Do we show the default status by default?'
         self.assertEqual(run(Output.BUILD_SIMPLE_ECHO), '[1/1] echo a\x1b[K\ndo thing\n')
