@@ -30,6 +30,10 @@ jobs:
       run: ./ninja_test
       working-directory: build/Release
 
+    - name: Test tool targets (Release)
+      run: python3 ../../misc/output_test.py ToolTargets -v
+      working-directory: build/Release
+
     - name: Create ninja archive
       shell: bash
       run: |
