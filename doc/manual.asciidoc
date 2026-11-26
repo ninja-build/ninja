@@ -186,6 +186,14 @@ match those of Make; e.g `ninja -C build -j 20` changes into the
 Ninja defaults to running commands in parallel anyway, so typically
 you don't need to pass `-j`.)
 
+Additional useful flags include:
+
+`-k N`::
+  Keep going until _N_ jobs fail (0 means infinity; default is 1).
+
+`-l N`::
+  Do not start new jobs when the system load average is greater than _N_.
+
 
 GNU Jobserver support
 ~~~~~~~~~~~~~~~~~~~~~
