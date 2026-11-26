@@ -340,7 +340,7 @@ TEST_F(ParserTest, DuplicateEdgeWithMultipleOutputsError) {
   ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("input:5: multiple rules generate out1\n", err);
+  EXPECT_EQ("input:5: multiple rules generate out1 (defined by rule 'cat', previously defined by rule 'cat' with input 'in1')\n", err);
 }
 
 TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
@@ -355,7 +355,33 @@ TEST_F(ParserTest, DuplicateEdgeInIncludedFile) {
   ManifestParser parser(&state, &fs_);
   string err;
   EXPECT_FALSE(parser.ParseTest(kInput, &err));
-  EXPECT_EQ("sub.ninja:5: multiple rules generate out1\n", err);
+  EXPECT_EQ("sub.ninja:5: multiple rules generate out1 (defined by rule 'cat', previously defined by rule 'cat' with input 'in1')\n", err);
+}
+
+TEST_F(ParserTest, DuplicateEdgeContextMultipleInputs) {
+  const char kInput[] =
+"rule compile\n"
+"  command = cc -c $in -o $out\n"
+"rule link\n"
+"  command = ld $in -o $out\n"
+"build obj: compile a.c b.c\n"
+"build obj: link x.o\n";
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("input:7: multiple rules generate obj (defined by rule 'link', previously defined by rule 'compile' with inputs ['a.c', 'b.c'])\n", err);
+}
+
+TEST_F(ParserTest, DuplicateEdgeContextNoInputs) {
+  const char kInput[] =
+"rule touch\n"
+"  command = touch $out\n"
+"build out: touch\n"
+"build out: touch\n";
+  ManifestParser parser(&state, &fs_);
+  string err;
+  EXPECT_FALSE(parser.ParseTest(kInput, &err));
+  EXPECT_EQ("input:5: multiple rules generate out (defined by rule 'touch', previously defined by rule 'touch')\n", err);
 }
 
 TEST_F(ParserTest, PhonySelfReferenceIgnored) {

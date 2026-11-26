@@ -139,7 +139,7 @@ bool State::AddOut(Edge* edge, StringPiece path, uint64_t slash_bits,
     if (other == edge) {
       *err = path.AsString() + " is defined as an output multiple times";
     } else {
-      *err = "multiple rules generate " + path.AsString();
+      *err = Edge::FormatDuplicateRuleError(edge, other, path);
     }
     return false;
   }
