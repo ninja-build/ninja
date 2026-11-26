@@ -327,7 +327,7 @@ DepsLog::Deps* DepsLog::GetDeps(Node* node) {
   return deps_[node->id()];
 }
 
-Node* DepsLog::GetFirstReverseDepsNode(Node* node) {
+Node* DepsLog::GetFirstReverseDepsNode(Node* node) const {
   for (size_t id = 0; id < deps_.size(); ++id) {
     Deps* deps = deps_[id];
     if (!deps)
